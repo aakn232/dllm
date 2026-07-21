@@ -28,7 +28,7 @@ class UserSettings(Base):
     __tablename__ = "user_settings"
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     dark_mode = Column(Boolean, default=True, nullable=False)
-    enable_thinking = Column(Boolean, default=True, nullable=False)
+    enable_thinking = Column(Boolean, default=False, nullable=False)
     temperature = Column(Float, default=0.7, nullable=False)
     top_p = Column(Float, default=0.9, nullable=False)
     max_tokens = Column(Integer, default=2048, nullable=False)

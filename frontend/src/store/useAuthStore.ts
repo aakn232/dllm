@@ -151,8 +151,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       if (res.ok) {
         const settings = await res.json();
-        // useChatStore에 다크모드 및 씽킹 상태 동기화
-        useChatStore.getState().setEnableThinking(settings.enable_thinking);
+        // 씽킹 모드 로그인/세션 로드시 항상 OFF로 초기화 (요구사항)
+        useChatStore.getState().setEnableThinking(false);
         
         // 다크모드 설정 동기화
         if (useChatStore.getState().darkMode !== settings.dark_mode) {

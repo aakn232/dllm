@@ -44,7 +44,7 @@ class SessionResponse(BaseModel):
 class ChatCompletionRequest(BaseModel):
     session_id: Optional[str] = None
     messages: List[dict]
-    enable_thinking: bool = True
+    enable_thinking: bool = False
     temperature: Optional[float] = 0.7
     top_p: Optional[float] = 0.9
     max_tokens: Optional[int] = 2048
@@ -75,7 +75,7 @@ class TokenResponse(BaseModel):
 class UserSettingsSchema(BaseModel):
     user_id: str
     dark_mode: bool
-    enable_thinking: bool
+    enable_thinking: bool = False
     temperature: float
     top_p: float
     max_tokens: int
