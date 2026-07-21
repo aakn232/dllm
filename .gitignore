@@ -1,0 +1,32 @@
+# venv
+venv/
+.venv/
+env/
+
+# Environment variables
+.env
+*.env
+
+# Database
+chat_history.db
+*.db
+*.sqlite3
+
+# Python cache & build
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE / Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node / Frontend build (if any)
+node_modules/
+dist/
+.next/
