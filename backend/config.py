@@ -14,3 +14,4 @@ ENV = os.getenv("ENV", "development")
 
 # CORS 허용 Origin 목록 (쉼표 구분)
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "")
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "")

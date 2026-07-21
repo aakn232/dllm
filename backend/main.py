@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.database import engine, Base
 from backend.config import ENV, ALLOWED_ORIGINS
-from backend.routers import chat, sessions, status, custom_instructions
+from backend.routers import chat, sessions, status, custom_instructions, auth, user_settings, admin
 
 # DB 테이블 생성
 Base.metadata.create_all(bind=engine)
@@ -33,6 +33,9 @@ app.include_router(chat.router)
 app.include_router(sessions.router)
 app.include_router(status.router)
 app.include_router(custom_instructions.router)
+app.include_router(auth.router)
+app.include_router(user_settings.router)
+app.include_router(admin.router)
 
 
 @app.get("/")

@@ -1,15 +1,17 @@
 import json
 import logging
+from datetime import datetime, timezone
 from typing import AsyncGenerator
-from fastapi import APIRouter, Request, HTTPException, Depends
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
 import httpx
 
 from copy import deepcopy
+from backend.auth import get_current_user
 from backend.config import NVIDIA_API_KEY, NVIDIA_API_URL, MODEL_NAME
 from backend.database import get_db
-from backend.models import ChatSession, ChatMessage, MessageAttachment, CustomInstruction
+from backend.models import ChatSession, ChatMessage, MessageAttachment, CustomInstruction, DailyUsage, User, UserQuota
 from backend.schemas import ChatCompletionRequest
 
 router = APIRouter(prefix="/api/v1", tags=["chat"])
@@ -17,9 +19,12 @@ logger = logging.getLogger("chat_proxy")
 
 MAX_CONTEXT_MESSAGES = 20  # 컨텍스트 관리: 최근 20개 메시지 유지 (슬라이딩 윈도우)
 
-def get_active_custom_instruction(db: Session = Depends(get_db)) -> CustomInstruction | None:
+def get_active_custom_instruction(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> CustomInstruction | None:
     return db.query(CustomInstruction).filter(
-        CustomInstruction.id == 1,
+        CustomInstruction.user_id == current_user.id,
         CustomInstruction.is_enabled.is_(True)
     ).first()
 
@@ -66,7 +71,8 @@ async def stream_nvidia_response(
     response: httpx.Response,
     enable_thinking: bool,
     session_id: str = None,
-    db: Session = None
+    db: Session = None,
+    user_id: str | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     NVIDIA API 스트림을 읽어서 thinking 태그 필터링 및 
@@ -101,6 +107,26 @@ async def stream_nvidia_response(
                         yield f"data: {json.dumps({'type': 'message_id', 'id': msg.id})}\n\n"
                     except Exception as e:
                         logger.error(f"Failed to save assistant message: {e}")
+
+                if user_id and db:
+                    try:
+                        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                        usage = db.query(DailyUsage).filter(
+                            DailyUsage.user_id == user_id,
+                            DailyUsage.date == today,
+                        ).first()
+                        if not usage:
+                            usage = DailyUsage(user_id=user_id, date=today, token_count=0, request_count=0)
+                            db.add(usage)
+                            db.flush()
+
+                        words = [word for word in full_assistant_content.strip().split() if word]
+                        estimated_tokens = round(len(words) * 1.3) if words else 0
+                        usage.request_count += 1
+                        usage.token_count += estimated_tokens
+                        db.commit()
+                    except Exception as e:
+                        logger.error(f"Failed to update daily usage: {e}")
                 
                 yield "data: [DONE]\n\n"
                 break
@@ -168,6 +194,7 @@ async def stream_nvidia_response(
 @router.post("/chat/completions")
 async def chat_completions(
     req: ChatCompletionRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     instruction: CustomInstruction | None = Depends(get_active_custom_instruction)
 ):
@@ -233,6 +260,44 @@ async def chat_completions(
         )
 
     return StreamingResponse(
-        stream_nvidia_response(response, req.enable_thinking, req.session_id, db),
+        stream_nvidia_response(response, req.enable_thinking, req.session_id, db, current_user.id),
         media_type="text/event-stream"
     )
+    if req.session_id:
+        session = db.query(ChatSession).filter(
+            ChatSession.id == req.session_id,
+            ChatSession.user_id == current_user.id,
+        ).first()
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    usage = db.query(DailyUsage).filter(
+        DailyUsage.user_id == current_user.id,
+        DailyUsage.date == today,
+    ).first()
+    if not usage:
+        usage = DailyUsage(user_id=current_user.id, date=today, token_count=0, request_count=0)
+        db.add(usage)
+        db.commit()
+        db.refresh(usage)
+
+    quota = db.query(UserQuota).filter(UserQuota.user_id == current_user.id).first()
+    if not quota:
+        quota = UserQuota(user_id=current_user.id)
+        db.add(quota)
+        db.commit()
+        db.refresh(quota)
+
+    if quota.limit_mode in {"requests", "both"} and quota.daily_request_limit is not None:
+        if usage.request_count >= quota.daily_request_limit:
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "일일 요청 횟수 한도를 초과했습니다.", "limit_type": "request"},
+            )
+    if quota.limit_mode in {"tokens", "both"} and quota.daily_token_limit is not None:
+        if usage.token_count >= quota.daily_token_limit:
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "일일 토큰 사용량 한도를 초과했습니다.", "limit_type": "token"},
+            )
