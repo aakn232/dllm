@@ -14,3 +14,8 @@ ENV = os.getenv("ENV", "development")
 
 # CORS 허용 Origin 목록 (쉼표 구분)
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "")
+
+SECRET_KEY = os.getenv("SECRET_KEY", "change-this-secret-key-in-production-1234567890")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24시간 (1440분)
+

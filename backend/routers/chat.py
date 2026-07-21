@@ -1,5 +1,6 @@
 import json
 import logging
+from datetime import date
 from typing import AsyncGenerator
 from fastapi import APIRouter, Request, HTTPException, Depends
 from fastapi.responses import StreamingResponse
@@ -9,19 +10,65 @@ import httpx
 from copy import deepcopy
 from backend.config import NVIDIA_API_KEY, NVIDIA_API_URL, MODEL_NAME
 from backend.database import get_db
-from backend.models import ChatSession, ChatMessage, MessageAttachment, CustomInstruction
+from backend.models import ChatSession, ChatMessage, MessageAttachment, CustomInstruction, User, UsageLimit, UsageLog
 from backend.schemas import ChatCompletionRequest
+from backend.dependencies import get_current_user
 
 router = APIRouter(prefix="/api/v1", tags=["chat"])
 logger = logging.getLogger("chat_proxy")
 
 MAX_CONTEXT_MESSAGES = 20  # 컨텍스트 관리: 최근 20개 메시지 유지 (슬라이딩 윈도우)
 
-def get_active_custom_instruction(db: Session = Depends(get_db)) -> CustomInstruction | None:
-    return db.query(CustomInstruction).filter(
-        CustomInstruction.id == 1,
-        CustomInstruction.is_enabled.is_(True)
+def check_and_enforce_limit(user: User, db: Session):
+    today = date.today()
+    
+    limit = db.query(UsageLimit).filter(UsageLimit.user_id == user.id).first()
+    if limit is None:
+        return  # 한도 설정 없음 = 무제한
+    
+    log = db.query(UsageLog).filter(
+        UsageLog.user_id == user.id,
+        UsageLog.date == today
     ).first()
+    
+    today_tokens = log.token_count if log else 0
+    today_requests = log.request_count if log else 0
+    
+    mode = limit.limit_mode  # "both", "token_only", "request_only"
+    
+    token_exceeded = (
+        limit.daily_token_limit is not None and 
+        today_tokens >= limit.daily_token_limit and
+        mode in ("both", "token_only")
+    )
+    request_exceeded = (
+        limit.daily_request_limit is not None and 
+        today_requests >= limit.daily_request_limit and
+        mode in ("both", "request_only")
+    )
+    
+    if token_exceeded:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "message": f"일일 토큰 사용량 한도({limit.daily_token_limit:,} 토큰)를 초과했습니다.",
+                "limit_type": "token",
+                "used": today_tokens,
+                "limit": limit.daily_token_limit,
+                "reset": "자정(00:00)에 초기화됩니다."
+            }
+        )
+    if request_exceeded:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "message": f"일일 요청 횟수 한도({limit.daily_request_limit:,}회)를 초과했습니다.",
+                "limit_type": "request",
+                "used": today_requests,
+                "limit": limit.daily_request_limit,
+                "reset": "자정(00:00)에 초기화됩니다."
+            }
+        )
 
 def merge_custom_instruction_prompt(
     messages: list[dict],
@@ -66,7 +113,8 @@ async def stream_nvidia_response(
     response: httpx.Response,
     enable_thinking: bool,
     session_id: str = None,
-    db: Session = None
+    db: Session = None,
+    user_id: str = None
 ) -> AsyncGenerator[str, None]:
     """
     NVIDIA API 스트림을 읽어서 thinking 태그 필터링 및 
@@ -77,6 +125,7 @@ async def stream_nvidia_response(
     
     thinking_buffer = ""
     in_thinking_tag = False
+    actual_tokens = 0
 
     try:
         async for line in response.aiter_lines():
@@ -102,11 +151,44 @@ async def stream_nvidia_response(
                     except Exception as e:
                         logger.error(f"Failed to save assistant message: {e}")
                 
+                # 사용량 누적 기록
+                if user_id and db:
+                    try:
+                        today = date.today()
+                        approx_tokens = max(1, len(full_assistant_content) // 4)
+                        token_increment = actual_tokens if actual_tokens > 0 else approx_tokens
+                        
+                        log_rec = db.query(UsageLog).filter(
+                            UsageLog.user_id == user_id,
+                            UsageLog.date == today
+                        ).first()
+                        
+                        if log_rec:
+                            log_rec.token_count += token_increment
+                            log_rec.request_count += 1
+                        else:
+                            log_rec = UsageLog(
+                                user_id=user_id,
+                                date=today,
+                                token_count=token_increment,
+                                request_count=1
+                            )
+                            db.add(log_rec)
+                        db.commit()
+                    except Exception as ex:
+                        logger.error(f"Failed to log usage: {ex}")
+                        db.rollback()
+
                 yield "data: [DONE]\n\n"
                 break
 
             try:
                 chunk_json = json.loads(data_str)
+                
+                # 토큰 사용량 파싱
+                if "usage" in chunk_json and chunk_json["usage"]:
+                    actual_tokens = chunk_json["usage"].get("total_tokens", 0)
+
                 choices = chunk_json.get("choices", [])
                 if not choices:
                     continue
@@ -169,12 +251,30 @@ async def stream_nvidia_response(
 async def chat_completions(
     req: ChatCompletionRequest,
     db: Session = Depends(get_db),
-    instruction: CustomInstruction | None = Depends(get_active_custom_instruction)
+    current_user: User = Depends(get_current_user)
 ):
     if not NVIDIA_API_KEY:
         logger.warning("NVIDIA_API_KEY is not set in environment.")
 
-    # 1. 메시지 유효성 검사 및 빈 assistant 메시지 제거 (NVIDIA BadRequestError 방지)
+    # 1. 일일 한도 체크
+    check_and_enforce_limit(current_user, db)
+
+    # 2. 세션 유효성 검사 (세션 소유주 여부 확인)
+    if req.session_id:
+        session = db.query(ChatSession).filter(
+            ChatSession.id == req.session_id,
+            ChatSession.user_id == current_user.id
+        ).first()
+        if not session:
+            raise HTTPException(status_code=404, detail="세션을 찾을 수 없거나 접근 권한이 없습니다.")
+
+    # 3. 맞춤지침 가져오기 (user_id 기준)
+    instruction = db.query(CustomInstruction).filter(
+        CustomInstruction.user_id == current_user.id,
+        CustomInstruction.is_enabled.is_(True)
+    ).first()
+
+    # 4. 메시지 유효성 검사 및 빈 assistant 메시지 제거 (NVIDIA BadRequestError 방지)
     valid_messages = []
     for m in req.messages:
         role = m.get("role")
@@ -189,15 +289,14 @@ async def chat_completions(
                 continue
         valid_messages.append(m)
 
-    # 2. 맞춤 지침 프롬프트 안전 병합 (불변)
+    # 5. 맞춤 지침 프롬프트 안전 병합 (불변)
     valid_messages = merge_custom_instruction_prompt(valid_messages, instruction)
 
-    # 3. 컨텍스트 관리 (최근 MAX_CONTEXT_MESSAGES 개 메시지로 제한)
+    # 6. 컨텍스트 관리 (최근 MAX_CONTEXT_MESSAGES 개 메시지로 제한)
     if len(valid_messages) > MAX_CONTEXT_MESSAGES:
         system_msgs = [m for m in valid_messages if m.get("role") == "system"]
         other_msgs = [m for m in valid_messages if m.get("role") != "system"]
         valid_messages = system_msgs + other_msgs[-MAX_CONTEXT_MESSAGES:]
-
 
     payload = {
         "model": MODEL_NAME,
@@ -233,6 +332,6 @@ async def chat_completions(
         )
 
     return StreamingResponse(
-        stream_nvidia_response(response, req.enable_thinking, req.session_id, db),
+        stream_nvidia_response(response, req.enable_thinking, req.session_id, db, current_user.id),
         media_type="text/event-stream"
     )

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.database import engine, Base
 from backend.config import ENV, ALLOWED_ORIGINS
-from backend.routers import chat, sessions, status, custom_instructions
+from backend.routers import chat, sessions, status, custom_instructions, auth, settings, admin
 
 # DB 테이블 생성
 Base.metadata.create_all(bind=engine)
@@ -29,6 +29,9 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization"],
 )
 
+app.include_router(auth.router)
+app.include_router(settings.router)
+app.include_router(admin.router)
 app.include_router(chat.router)
 app.include_router(sessions.router)
 app.include_router(status.router)

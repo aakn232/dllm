@@ -25,7 +25,7 @@ export interface ChatSession {
 }
 
 export interface CustomInstruction {
-  id: number;
+  user_id: string;
   user_profile: string;
   response_style: string;
   is_enabled: boolean;

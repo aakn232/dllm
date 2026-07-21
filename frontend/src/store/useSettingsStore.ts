@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { CustomInstruction } from '../types/chat';
+import { authFetch } from '../utils/apiClient';
 
 const API_BASE = 'http://localhost:8000/api/v1';
 
@@ -32,7 +33,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   fetchCustomInstructions: async () => {
     set({ isLoading: true });
     try {
-      const res = await fetch(`${API_BASE}/custom-instructions`);
+      const res = await authFetch(`${API_BASE}/custom-instructions`);
       if (res.ok) {
         const data = await res.json();
         set({ customInstruction: data });
@@ -47,7 +48,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   updateCustomInstructions: async (payload) => {
     set({ isLoading: true });
     try {
-      const res = await fetch(`${API_BASE}/custom-instructions`, {
+      const res = await authFetch(`${API_BASE}/custom-instructions`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

@@ -2,44 +2,72 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from backend.database import get_db
-from backend.models import ChatSession, ChatMessage, MessageAttachment
+from backend.models import ChatSession, ChatMessage, MessageAttachment, User
 from backend.schemas import (
     SessionCreate, SessionUpdate, SessionResponse, 
     MessageCreate, MessageResponse
 )
+from backend.dependencies import get_current_user
 
 router = APIRouter(prefix="/api/v1/sessions", tags=["sessions"])
 
 @router.get("", response_model=List[SessionResponse])
-def get_sessions(db: Session = Depends(get_db)):
-    # 빈 세션(메시지가 없는 세션) 자동 정리 및 필터링
-    empty_sessions = db.query(ChatSession).filter(~ChatSession.messages.any()).all()
+def get_sessions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # 로그인한 사용자의 빈 세션(메시지가 없는 세션) 자동 정리 및 필터링
+    empty_sessions = db.query(ChatSession).filter(
+        ChatSession.user_id == current_user.id,
+        ~ChatSession.messages.any()
+    ).all()
     for s in empty_sessions:
         db.delete(s)
     if empty_sessions:
         db.commit()
 
-    sessions = db.query(ChatSession).order_by(ChatSession.updated_at.desc()).all()
+    sessions = db.query(ChatSession).filter(
+        ChatSession.user_id == current_user.id
+    ).order_by(ChatSession.updated_at.desc()).all()
     return sessions
 
 @router.post("", response_model=SessionResponse, status_code=status.HTTP_201_CREATED)
-def create_session(req: SessionCreate, db: Session = Depends(get_db)):
-    session = ChatSession(title=req.title or "새 대화")
+def create_session(
+    req: SessionCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    session = ChatSession(title=req.title or "새 대화", user_id=current_user.id)
     db.add(session)
     db.commit()
     db.refresh(session)
     return session
 
 @router.get("/{session_id}", response_model=SessionResponse)
-def get_session(session_id: str, db: Session = Depends(get_db)):
-    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+def get_session(
+    session_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    session = db.query(ChatSession).filter(
+        ChatSession.id == session_id,
+        ChatSession.user_id == current_user.id
+    ).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     return session
 
 @router.patch("/{session_id}", response_model=SessionResponse)
-def update_session(session_id: str, req: SessionUpdate, db: Session = Depends(get_db)):
-    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+def update_session(
+    session_id: str,
+    req: SessionUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    session = db.query(ChatSession).filter(
+        ChatSession.id == session_id,
+        ChatSession.user_id == current_user.id
+    ).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     session.title = req.title
@@ -48,8 +76,15 @@ def update_session(session_id: str, req: SessionUpdate, db: Session = Depends(ge
     return session
 
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_session(session_id: str, db: Session = Depends(get_db)):
-    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+def delete_session(
+    session_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    session = db.query(ChatSession).filter(
+        ChatSession.id == session_id,
+        ChatSession.user_id == current_user.id
+    ).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     db.delete(session)
@@ -57,8 +92,16 @@ def delete_session(session_id: str, db: Session = Depends(get_db)):
     return None
 
 @router.post("/{session_id}/messages", response_model=MessageResponse)
-def create_message(session_id: str, req: MessageCreate, db: Session = Depends(get_db)):
-    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+def create_message(
+    session_id: str,
+    req: MessageCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    session = db.query(ChatSession).filter(
+        ChatSession.id == session_id,
+        ChatSession.user_id == current_user.id
+    ).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
@@ -96,11 +139,19 @@ def edit_and_truncate_messages(
     session_id: str, 
     message_id: str, 
     req: MessageCreate, 
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     메시지 수정 및 해당 메시지 시점 이후의 모든 대화 메시지들을 DB에서 롤백/트렁케이트(Truncate) 처리
     """
+    session = db.query(ChatSession).filter(
+        ChatSession.id == session_id,
+        ChatSession.user_id == current_user.id
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
     target_msg = db.query(ChatMessage).filter(
         ChatMessage.id == message_id, 
         ChatMessage.session_id == session_id
@@ -115,7 +166,7 @@ def edit_and_truncate_messages(
 
     if not target_msg:
         # 메시지가 정말 없으면 신규 생성
-        return create_message(session_id, req, db)
+        return create_message(session_id, req, db, current_user)
 
     # 1. 대상 메시지 내용 업데이트
     content_str = req.content if isinstance(req.content, str) else str(req.content)

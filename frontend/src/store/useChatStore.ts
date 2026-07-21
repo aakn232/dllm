@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { ChatSession, ChatMessage, Attachment } from '../types/chat';
+import { authFetch } from '../utils/apiClient';
 
 const API_BASE = 'http://localhost:8000/api/v1';
 
@@ -48,7 +49,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   fetchSessions: async () => {
     try {
-      const res = await fetch(`${API_BASE}/sessions`);
+      const res = await authFetch(`${API_BASE}/sessions`);
       if (res.ok) {
         const data = await res.json();
         set({ sessions: data });
@@ -69,7 +70,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   selectSession: async (id: string) => {
     set({ currentSessionId: id });
     try {
-      const res = await fetch(`${API_BASE}/sessions/${id}`);
+      const res = await authFetch(`${API_BASE}/sessions/${id}`);
       if (res.ok) {
         const data = await res.json();
         const loadedMessages = data.messages || [];
@@ -91,7 +92,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   updateSessionTitle: async (id: string, title: string) => {
     try {
-      const res = await fetch(`${API_BASE}/sessions/${id}`, {
+      const res = await authFetch(`${API_BASE}/sessions/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title })
@@ -108,7 +109,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   deleteSession: async (id: string) => {
     try {
-      const res = await fetch(`${API_BASE}/sessions/${id}`, { method: 'DELETE' });
+      const res = await authFetch(`${API_BASE}/sessions/${id}`, { method: 'DELETE' });
       if (res.ok) {
         set(state => {
           const filtered = state.sessions.filter(s => s.id !== id);
@@ -165,7 +166,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     if (!sessionId) {
       try {
         const title = content.trim().slice(0, 30) || '새 대화';
-        const res = await fetch(`${API_BASE}/sessions`, {
+        const res = await authFetch(`${API_BASE}/sessions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title })
@@ -217,7 +218,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     // 백엔드에 사용자 메시지 저장 및 서버 UUID 동기화
     try {
-      const res = await fetch(`${API_BASE}/sessions/${sessionId}/messages`, {
+      const res = await authFetch(`${API_BASE}/sessions/${sessionId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -265,7 +266,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     let tokenCount = 0;
 
     try {
-      const response = await fetch(`${API_BASE}/chat/completions`, {
+      const response = await authFetch(`${API_BASE}/chat/completions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
@@ -277,6 +278,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       });
 
       if (!response.ok) {
+        if (response.status === 429) {
+          const errJson = await response.json().catch(() => ({ detail: { message: '일일 제한 한도를 초과했습니다.' } }));
+          const detailMsg = typeof errJson.detail === 'object' ? errJson.detail.message : errJson.detail;
+          throw new Error(detailMsg || '한도 초과');
+        }
         const errJson = await response.json().catch(() => ({ detail: 'Network error' }));
         throw new Error(errJson.detail || 'Failed to complete chat');
       }
@@ -405,7 +411,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     // 3. 백엔드 DB 메시지 수정 및 트렁케이트 API 호출
     try {
-      const res = await fetch(`${API_BASE}/sessions/${currentSessionId}/messages/${messageId}/edit`, {
+      const res = await authFetch(`${API_BASE}/sessions/${currentSessionId}/messages/${messageId}/edit`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -455,7 +461,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     let tokenCount = 0;
 
     try {
-      const response = await fetch(`${API_BASE}/chat/completions`, {
+      const response = await authFetch(`${API_BASE}/chat/completions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
@@ -467,6 +473,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       });
 
       if (!response.ok) {
+        if (response.status === 429) {
+          const errJson = await response.json().catch(() => ({ detail: { message: '일일 제한 한도를 초과했습니다.' } }));
+          const detailMsg = typeof errJson.detail === 'object' ? errJson.detail.message : errJson.detail;
+          throw new Error(detailMsg || '한도 초과');
+        }
         const errJson = await response.json().catch(() => ({ detail: 'Network error' }));
         throw new Error(errJson.detail || 'Failed to complete chat');
       }
