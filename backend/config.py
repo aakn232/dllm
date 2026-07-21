@@ -9,8 +9,12 @@ MODEL_NAME = os.getenv("MODEL_NAME", "google/diffusiongemma-26b-a4b-it")
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./chat_history.db")
 
-# 환경 설정 (development / production)
 ENV = os.getenv("ENV", "development")
-
-# CORS 허용 Origin 목록 (쉼표 구분)
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "")
+
+SECRET_KEY = os.getenv("SECRET_KEY", "change-me-in-production")
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_DAYS = int(os.getenv("ACCESS_TOKEN_EXPIRE_DAYS", "7"))
+
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin1234")
