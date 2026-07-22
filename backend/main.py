@@ -13,20 +13,47 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS 설정 — 환경별 분리
+# CORS 설정 — 대괄호/공백/와일드카드 안전 처리
+raw_origins = ALLOWED_ORIGINS.strip().strip("[]").strip()
+
+default_local_origins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
+]
+
 if ENV == "development":
-    # 개발 시에만 로컬 프론트엔드 허용
-    cors_origins = ["http://localhost:5173", "http://localhost:3000"]
+    cors_origins = list(default_local_origins)
+    if cleaned_origins := raw_origins:
+        if cleaned_origins != "*":
+            for o in cleaned_origins.split(","):
+                co = o.strip().rstrip('/')
+                if co and co not in cors_origins:
+                    cors_origins.append(co)
+        else:
+            cors_origins = ["*"]
 else:
-    # 배포 시 ALLOWED_ORIGINS 환경변수에 명시된 도메인만 허용
-    cors_origins = [o.strip() for o in ALLOWED_ORIGINS.split(",") if o.strip()]
+    if not raw_origins or raw_origins == "*":
+        cors_origins = ["*"]
+    else:
+        cors_origins = [o.strip().rstrip('/') for o in raw_origins.split(",") if o.strip()]
+        # 기본 로컬도 포함
+        for loc in default_local_origins:
+            if loc not in cors_origins:
+                cors_origins.append(loc)
+
+# "*" 이 cors_origins에 포함되어 있다면 allow_credentials는 False여야 FastAPI/브라우저 오류가 없음
+allow_credentials = True
+if "*" in cors_origins:
+    allow_credentials = False
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-    allow_headers=["Content-Type", "Authorization"],
+    allow_credentials=allow_credentials,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(auth.router)

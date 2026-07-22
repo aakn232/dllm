@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { useChatStore } from './useChatStore';
 import { API_V1_BASE } from '../config';
+import { extractErrorMessage } from '../utils/errorUtils';
 
 const API_BASE = API_V1_BASE;
 
@@ -28,6 +29,13 @@ interface AuthState {
   checkUsernameAvailability: (username: string) => Promise<{ is_available: boolean; message: string }>;
 }
 
+function handleFetchError(err: any): never {
+  if (err instanceof TypeError && (err.message === 'Failed to fetch' || err.message.includes('fetch'))) {
+    throw new Error('백엔드 서버에 연결할 수 없습니다. (CORS 설정 또는 서버 상태를 확인하세요)');
+  }
+  throw err;
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   token: typeof window !== 'undefined' ? localStorage.getItem('token') : null,
@@ -47,8 +55,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
 
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ detail: '로그인에 실패했습니다.' }));
-        throw new Error(errorData.detail || '로그인 실패');
+        const errorData = await res.json().catch(() => null);
+        throw new Error(extractErrorMessage(errorData, '로그인에 실패했습니다.'));
       }
 
       const data = await res.json();
@@ -64,7 +72,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (err) {
       localStorage.removeItem('token');
       set({ token: null, user: null, isAuthenticated: false });
-      throw err;
+      handleFetchError(err);
     }
   },
 
@@ -77,8 +85,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
 
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ detail: '회원가입에 실패했습니다.' }));
-        throw new Error(errorData.detail || '회원가입 실패');
+        const errorData = await res.json().catch(() => null);
+        throw new Error(extractErrorMessage(errorData, '회원가입에 실패했습니다.'));
       }
 
       const data = await res.json();
@@ -94,7 +102,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (err) {
       localStorage.removeItem('token');
       set({ token: null, user: null, isAuthenticated: false });
-      throw err;
+      handleFetchError(err);
     }
   },
 
@@ -169,31 +177,39 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { token } = get();
     if (!token) throw new Error('인증 토큰이 없습니다. 다시 로그인해 주세요.');
 
-    const res = await fetch(`${API_BASE}/auth/change-password`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        current_password: currentPassword,
-        new_password: newPassword,
-      }),
-    });
+    try {
+      const res = await fetch(`${API_BASE}/auth/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          current_password: currentPassword,
+          new_password: newPassword,
+        }),
+      });
 
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({ detail: '비밀번호 변경에 실패했습니다.' }));
-      throw new Error(errorData.detail || '비밀번호 변경 실패');
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        throw new Error(extractErrorMessage(errorData, '비밀번호 변경에 실패했습니다.'));
+      }
+    } catch (err) {
+      handleFetchError(err);
     }
   },
 
   checkUsernameAvailability: async (username: string) => {
-    const res = await fetch(`${API_BASE}/auth/check-username?username=${encodeURIComponent(username)}`);
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({ detail: '아이디 중복 확인에 실패했습니다.' }));
-      throw new Error(errorData.detail || '아이디 중복 확인 실패');
+    try {
+      const res = await fetch(`${API_BASE}/auth/check-username?username=${encodeURIComponent(username)}`);
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        throw new Error(extractErrorMessage(errorData, '아이디 중복 확인에 실패했습니다.'));
+      }
+      return await res.json();
+    } catch (err) {
+      handleFetchError(err);
     }
-    return await res.json();
   },
 }));
 

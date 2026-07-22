@@ -49,26 +49,24 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
 
     hashed_pw = get_password_hash(payload.password)
     
-    # 1. User 생성
-    user = User(
-        username=payload.username,
-        email=payload.email,
-        hashed_password=hashed_pw,
-        is_admin=is_admin,
-        is_active=True
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-
     try:
+        # 1. User 생성
+        user = User(
+            username=payload.username,
+            email=payload.email,
+            hashed_password=hashed_pw,
+            is_admin=is_admin,
+            is_active=True
+        )
+        db.add(user)
+
         # 2. UserSettings 생성
-        settings = UserSettings(user_id=user.id)
+        settings = UserSettings(user=user)
         db.add(settings)
 
-        # 3. UsageLimit 생성 (기본: 하루 요청 30회 제한, limit_mode="request_only", daily_token_limit=None)
+        # 3. UsageLimit 생성
         limit = UsageLimit(
-            user_id=user.id,
+            user=user,
             limit_mode="request_only",
             daily_request_limit=30,
             daily_token_limit=None
@@ -77,7 +75,7 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
 
         # 4. CustomInstruction 생성
         instruction = CustomInstruction(
-            user_id=user.id,
+            user=user,
             user_profile="",
             response_style="",
             is_enabled=True,
@@ -86,12 +84,12 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
         db.add(instruction)
         
         db.commit()
+        db.refresh(user)
     except Exception as e:
         db.rollback()
-        # User가 이미 커밋되었기 때문에 롤백 시 생성된 연관 데이터만 영향
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"회원 가입 초기 설정 중 오류가 발생했습니다: {str(e)}"
+            detail=f"회원 가입 처리 중 오류가 발생했습니다: {str(e)}"
         )
 
     # 토큰 발행 및 반환
