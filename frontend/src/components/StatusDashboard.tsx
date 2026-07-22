@@ -75,20 +75,33 @@ export const StatusDashboard: React.FC<StatusDashboardProps> = ({ isOpen, onClos
   };
 
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
     if (isOpen) {
       fetchStatus();
       const interval = setInterval(fetchStatus, 10000); // 10초마다 자동 갱신
-      return () => clearInterval(interval);
+      window.addEventListener('keydown', handleKeyDown);
+      return () => {
+        clearInterval(interval);
+        window.removeEventListener('keydown', handleKeyDown);
+      };
     }
-  }, [isOpen]);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className={`w-full max-w-4xl max-h-[90vh] rounded-2xl border flex flex-col overflow-hidden shadow-2xl transition-all ${
-        darkMode ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-300 text-slate-900'
-      }`}>
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div 
+        onClick={(e) => e.stopPropagation()}
+        className={`w-full max-w-4xl max-h-[90vh] rounded-2xl border flex flex-col overflow-hidden shadow-2xl transition-all ${
+          darkMode ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-300 text-slate-900'
+        }`}
+      >
         {/* 상단 헤더 */}
         <div className={`px-6 py-4 border-b flex items-center justify-between ${
           darkMode ? 'border-slate-800 bg-slate-900/50' : 'border-slate-200 bg-slate-50'

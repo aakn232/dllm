@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
 import { useChatStore } from './store/useChatStore';
 import { useSettingsStore } from './store/useSettingsStore';
 import { useAuthStore } from './store/useAuthStore';
@@ -7,56 +8,70 @@ import { ChatMessageItem } from './components/ChatMessageItem';
 import { ChatInput } from './components/ChatInput';
 import { StatusDashboard } from './components/StatusDashboard';
 import { CustomInstructionsModal } from './components/CustomInstructionsModal';
+import { ProfileModal } from './components/ProfileModal';
+import { PasswordChangeModal } from './components/PasswordChangeModal';
 import { LoginPage } from './pages/LoginPage';
 import { AdminPage } from './pages/AdminPage';
-import { UserSettingsPage } from './pages/UserSettingsPage';
-import { Menu, Sparkles, Activity, LogOut, Shield, User, Settings, KeyRound, Sliders } from 'lucide-react';
+import { Menu, Sparkles } from 'lucide-react';
+
+const ChatView: React.FC = () => {
+  const { sessionId } = useParams<{ sessionId?: string }>();
+  const { selectSession, goHome, currentSessionId } = useChatStore();
+
+  useEffect(() => {
+    if (sessionId) {
+      if (sessionId !== currentSessionId) {
+        selectSession(sessionId);
+      }
+    } else {
+      if (currentSessionId !== null) {
+        goHome();
+      }
+    }
+  }, [sessionId]);
+
+  return null;
+};
 
 export const App: React.FC = () => {
+  const navigate = useNavigate();
   const {
     fetchSessions,
     messages,
     createSession,
-    currentSessionId,
-    sessions,
+    selectSession,
     darkMode,
     goHome
   } = useChatStore();
-  const { fetchCustomInstructions, openModal: openCustomInstructionsModal } = useSettingsStore();
-  const { isAuthenticated, isLoading, user, checkAuth, logout } = useAuthStore();
+  const { fetchCustomInstructions } = useSettingsStore();
+  const { isAuthenticated, isLoading, user, checkAuth } = useAuthStore();
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [statusOpen, setStatusOpen] = useState(false);
   const [isAdminView, setIsAdminView] = useState(false);
   const [isProfileView, setIsProfileView] = useState(false);
-  const [settingsDropdownOpen, setSettingsDropdownOpen] = useState(false);
+  const [isPasswordView, setIsPasswordView] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // 외부 클릭 시 드롭다운 닫기
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setSettingsDropdownOpen(false);
-      }
-    };
-    if (settingsDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [settingsDropdownOpen]);
 
   // 1. 앱 시작 시 인증 체크
   useEffect(() => {
     checkAuth();
   }, []);
 
-  // 2. 인증 성공 시에만 세션 및 맞춤지침 패치
+  // 2. 인증 성공 시 세션 및 맞춤지침 패치 후 URL 경로 동기화
   useEffect(() => {
     if (isAuthenticated) {
-      fetchSessions();
+      fetchSessions().then(() => {
+        const path = window.location.pathname;
+        if (path.startsWith('/c/')) {
+          const sId = path.split('/c/')[1];
+          if (sId) {
+            selectSession(sId);
+          }
+        } else {
+          goHome();
+        }
+      });
       fetchCustomInstructions();
     }
   }, [isAuthenticated]);
@@ -81,11 +96,12 @@ export const App: React.FC = () => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
         createSession();
+        navigate('/');
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, navigate]);
 
   // 자동 스크롤
   useEffect(() => {
@@ -113,165 +129,37 @@ export const App: React.FC = () => {
     return <AdminPage onBack={() => setIsAdminView(false)} />;
   }
 
-  if (isProfileView) {
-    return <UserSettingsPage onBack={() => setIsProfileView(false)} />;
-  }
-
-  const currentSession = sessions.find(s => s.id === currentSessionId);
-
   return (
     <div className={`flex h-screen w-screen overflow-hidden font-sans transition-colors duration-200 ${
       darkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
     }`}>
-      {/* 백엔드 상태 점검 대시보드 모달 */}
-      <StatusDashboard isOpen={statusOpen} onClose={() => setStatusOpen(false)} />
-
-      {/* 맞춤 지침 설정 모달 */}
-      <CustomInstructionsModal />
+      <Routes>
+        <Route path="/" element={<ChatView />} />
+        <Route path="/c/:sessionId" element={<ChatView />} />
+      </Routes>
 
       {/* 사이드바 */}
       <Sidebar
         isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
         onOpenStatus={() => setStatusOpen(true)}
-        onOpenAdmin={() => { setIsAdminView(true); setIsProfileView(false); }}
-        onOpenProfile={() => { setIsProfileView(true); setIsAdminView(false); }}
+        onOpenAdmin={() => { setIsAdminView(true); setIsProfileView(false); setIsPasswordView(false); }}
+        onOpenProfile={() => { setIsProfileView(true); setIsPasswordView(false); }}
+        onOpenPassword={() => { setIsPasswordView(true); setIsProfileView(false); }}
       />
 
       {/* 메인 영역 */}
       <main className="flex-1 flex flex-col h-full overflow-hidden relative">
-        {/* 상단 모바일/네비 헤더 */}
-        <header className={`h-14 border-b px-4 flex items-center justify-between backdrop-blur-md transition-colors ${
-          darkMode ? 'border-slate-800/80 bg-slate-900/50' : 'border-slate-300/80 bg-white/70 shadow-sm'
-        }`}>
-          <div className="flex items-center gap-3 min-w-0">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className={`md:hidden p-1 ${darkMode ? 'text-slate-400 hover:text-slate-100' : 'text-slate-600 hover:text-slate-900'}`}
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-            <button
-              onClick={goHome}
-              className={`font-semibold text-sm truncate hover:opacity-85 transition-opacity cursor-pointer text-left ${
-                darkMode ? 'text-slate-200' : 'text-slate-800'
-              }`}
-              title="홈 화면으로 이동"
-            >
-              {currentSession?.title || 'Diffusion Gemma'}
-            </button>
-          </div>
-
-          {/* 우측 서버 상태, 유저 프로필, 관리자 메뉴 및 로그아웃 */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {/* 관리자 패널 버튼 */}
-            {user?.is_admin && (
-              <button
-                onClick={() => setIsAdminView(true)}
-                className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border transition-colors cursor-pointer ${
-                  darkMode
-                    ? 'bg-slate-800/60 border-slate-700 text-amber-400 hover:bg-slate-800'
-                    : 'bg-white border-slate-300 text-amber-600 hover:bg-slate-50 shadow-sm'
-                }`}
-                title="관리자 패널 열기"
-              >
-                <Shield className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">관리자</span>
-              </button>
-            )}
-
-            {user?.is_admin && (
-              <button
-                onClick={() => setStatusOpen(true)}
-                className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors cursor-pointer ${
-                  darkMode
-                    ? 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700'
-                    : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100 shadow-sm'
-                }`}
-                title="백엔드 상태 및 로그 점검"
-              >
-                <Activity className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
-                <span className="hidden sm:inline">Status</span>
-              </button>
-            )}
-
-            {/* 유저명 배지 */}
-            <button
-              onClick={() => { setIsProfileView(true); setIsAdminView(false); }}
-              className={`hidden sm:flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border font-medium cursor-pointer transition-colors ${
-                darkMode
-                  ? 'bg-slate-800/50 border-slate-700/80 text-slate-300 hover:bg-slate-800'
-                  : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
-              }`}
-              title="사용자 설정 및 프로필 열기"
-            >
-              <User className="w-3.5 h-3.5 text-indigo-400" />
-              <span>{user?.username}</span>
-            </button>
-
-            {/* 설정 드롭다운 메뉴 */}
-            <div className="relative" ref={dropdownRef}>
-              <button
-                onClick={() => setSettingsDropdownOpen((prev) => !prev)}
-                className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors cursor-pointer ${
-                  darkMode
-                    ? 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700'
-                    : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100 shadow-sm'
-                }`}
-                title="설정 메뉴 열기"
-              >
-                <Settings className="w-3.5 h-3.5 text-indigo-400" />
-                <span className="hidden sm:inline">설정</span>
-              </button>
-
-              {settingsDropdownOpen && (
-                <div className={`absolute right-0 mt-2 w-48 rounded-xl border shadow-xl py-1.5 z-50 transition-all ${
-                  darkMode ? 'bg-slate-900 border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
-                }`}>
-                  <button
-                    onClick={() => {
-                      setSettingsDropdownOpen(false);
-                      setIsProfileView(true);
-                      setIsAdminView(false);
-                    }}
-                    className={`w-full px-3 py-2 text-xs flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
-                      darkMode ? 'hover:bg-slate-800 hover:text-slate-100' : 'hover:bg-slate-100 hover:text-slate-900'
-                    }`}
-                  >
-                    <KeyRound className="w-4 h-4 text-indigo-400" />
-                    <span>비밀번호 변경</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setSettingsDropdownOpen(false);
-                      openCustomInstructionsModal();
-                    }}
-                    className={`w-full px-3 py-2 text-xs flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
-                      darkMode ? 'hover:bg-slate-800 hover:text-slate-100' : 'hover:bg-slate-100 hover:text-slate-900'
-                    }`}
-                  >
-                    <Sliders className="w-4 h-4 text-indigo-400" />
-                    <span>맞춤 지침 설정</span>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* 로그아웃 버튼 */}
-            <button
-              onClick={logout}
-              className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
-                darkMode
-                  ? 'bg-slate-800/40 border-slate-700/80 text-slate-400 hover:text-slate-100 hover:border-slate-600'
-                  : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-100 hover:text-slate-900 shadow-sm'
-              }`}
-              title="로그아웃"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        </header>
+        {/* 모바일 전용 사이드바 토글 버튼 */}
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className={`md:hidden fixed top-3 left-3 z-30 p-2 rounded-lg border backdrop-blur-md shadow-sm transition-colors ${
+            darkMode ? 'border-slate-800 bg-slate-900/80 text-slate-300 hover:text-white' : 'border-slate-300 bg-white/80 text-slate-700 hover:text-black'
+          }`}
+          title={sidebarOpen ? "사이드바 닫기" : "사이드바 열기"}
+        >
+          <Menu className="w-5 h-5" />
+        </button>
 
         {/* 메시지 리스트 스크롤 영역 */}
         <div className="flex-1 overflow-y-auto">
@@ -302,6 +190,18 @@ export const App: React.FC = () => {
         {/* 하단 입력 영역 */}
         <ChatInput />
       </main>
+
+      {/* 백엔드 상태 점검 대시보드 모달 */}
+      <StatusDashboard isOpen={statusOpen} onClose={() => setStatusOpen(false)} />
+
+      {/* 맞춤 지침 설정 모달 */}
+      <CustomInstructionsModal />
+
+      {/* 프로필 정보 모달 (비밀번호 항목 제거된 정보 전용 모달) */}
+      <ProfileModal isOpen={isProfileView} onClose={() => setIsProfileView(false)} />
+
+      {/* 비밀번호 변경 모달 */}
+      <PasswordChangeModal isOpen={isPasswordView} onClose={() => setIsPasswordView(false)} />
     </div>
   );
 };

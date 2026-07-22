@@ -29,6 +29,7 @@ interface ChatStore {
   sendMessage: (content: string, attachments?: Attachment[]) => Promise<void>;
   editAndResendMessage: (messageId: string, newContent: string, attachments?: Attachment[]) => Promise<void>;
   regenerateMessage: (messageId: string) => Promise<void>;
+  deleteMessagePair: (messageId: string) => Promise<void>;
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
@@ -53,9 +54,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       if (res.ok) {
         const data = await res.json();
         set({ sessions: data });
-        if (data.length > 0 && !get().currentSessionId) {
-          get().selectSession(data[0].id);
-        }
       }
     } catch (err) {
       console.error("Failed to fetch sessions:", err);
@@ -597,6 +595,29 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     if (lastUserMsg && lastUserMsg.role === 'user') {
       get().editAndResendMessage(lastUserMsg.id, lastUserMsg.content, lastUserMsg.attachments);
+    }
+  },
+
+  deleteMessagePair: async (messageId: string) => {
+    const { currentSessionId } = get();
+    if (!currentSessionId) return;
+
+    try {
+      const res = await authFetch(`${API_BASE}/sessions/${currentSessionId}/messages/${messageId}`, {
+        method: 'DELETE'
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const deletedIds: string[] = data.deleted_ids || [];
+        set(state => ({
+          messages: state.messages.filter(m => !deletedIds.includes(m.id))
+        }));
+        // 세션 정보 재갱신 (메시지 수 등 변화 반영)
+        get().fetchSessions();
+      }
+    } catch (err) {
+      console.error("Failed to delete message pair:", err);
     }
   }
 }));

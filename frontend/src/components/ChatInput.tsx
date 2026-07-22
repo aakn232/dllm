@@ -9,11 +9,17 @@ export const ChatInput: React.FC = () => {
   const { sendMessage, isGenerating, stopGeneration, enableThinking, setEnableThinking, darkMode } = useChatStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim() && attachments.length === 0) return;
-    sendMessage(input, attachments);
+    const currentText = input;
+    const currentAtt = attachments;
     setInput('');
     setAttachments([]);
+    await sendMessage(currentText, currentAtt);
+    const newSessionId = useChatStore.getState().currentSessionId;
+    if (newSessionId && !window.location.pathname.startsWith(`/c/${newSessionId}`)) {
+      window.history.pushState(null, '', `/c/${newSessionId}`);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

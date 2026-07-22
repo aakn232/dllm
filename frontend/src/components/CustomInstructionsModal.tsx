@@ -49,6 +49,16 @@ export const CustomInstructionsModal: React.FC = () => {
     }
   }, [isModalOpen, customInstruction]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeModal();
+    };
+    if (isModalOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isModalOpen, closeModal]);
+
   if (!isModalOpen) return null;
 
   const handlePresetSelect = (preset: CustomInstructionPreset) => {
@@ -85,8 +95,12 @@ export const CustomInstructionsModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+      onClick={closeModal}
+    >
       <div
+        onClick={(e) => e.stopPropagation()}
         className={`w-full max-w-2xl rounded-2xl shadow-2xl border flex flex-col max-h-[90vh] overflow-hidden transition-all ${
           darkMode ? 'bg-slate-900/95 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
         }`}

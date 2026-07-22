@@ -194,3 +194,59 @@ def edit_and_truncate_messages(
     db.commit()
     db.refresh(target_msg)
     return target_msg
+
+@router.delete("/{session_id}/messages/{message_id}")
+def delete_message_pair(
+    session_id: str,
+    message_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    메시지 단일 세트(질문 + 답변) 삭제.
+    - 선택된 메시지가 user면: 해당 메시지 및 바로 다음 assistant 메시지 삭제
+    - 선택된 메시지가 assistant면: 해당 메시지 및 바로 이전 user 메시지 삭제
+    """
+    session = db.query(ChatSession).filter(
+        ChatSession.id == session_id,
+        ChatSession.user_id == current_user.id
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    target_msg = db.query(ChatMessage).filter(
+        ChatMessage.id == message_id,
+        ChatMessage.session_id == session_id
+    ).first()
+
+    if not target_msg:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    messages_to_delete = [target_msg]
+
+    all_messages = db.query(ChatMessage).filter(
+        ChatMessage.session_id == session_id
+    ).order_by(ChatMessage.created_at.asc()).all()
+
+    idx = next((i for i, m in enumerate(all_messages) if m.id == target_msg.id), -1)
+
+    if idx != -1:
+        if target_msg.role == "user":
+            # 바로 뒤에 있는 메시지가 assistant라면 짝으로 함께 삭제
+            if idx + 1 < len(all_messages) and all_messages[idx + 1].role == "assistant":
+                messages_to_delete.append(all_messages[idx + 1])
+        elif target_msg.role == "assistant":
+            # 바로 앞에 있는 메시지가 user라면 짝으로 함께 삭제
+            if idx - 1 >= 0 and all_messages[idx - 1].role == "user":
+                messages_to_delete.append(all_messages[idx - 1])
+
+    deleted_ids = []
+    for msg in messages_to_delete:
+        deleted_ids.append(msg.id)
+        # 첨부파일 삭제
+        db.query(MessageAttachment).filter(MessageAttachment.message_id == msg.id).delete()
+        db.delete(msg)
+
+    db.commit()
+    return {"status": "success", "deleted_ids": deleted_ids}
+

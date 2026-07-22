@@ -282,10 +282,16 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
 
       {/* 한도 편집 모달 오버레이 */}
       {selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className={`w-full max-w-md rounded-2xl border p-6 shadow-2xl transition-all ${
-            darkMode ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
-          }`}>
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setSelectedUser(null)}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className={`w-full max-w-md rounded-2xl border p-6 shadow-2xl transition-all ${
+              darkMode ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
+            }`}
+          >
             <div className="flex items-center justify-between mb-4 border-b pb-3 border-slate-800/40">
               <h3 className="font-bold text-sm flex items-center gap-2">
                 <Settings className="w-4 h-4 text-indigo-400" />
