@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { useChatStore } from './useChatStore';
+import { API_V1_BASE } from '../config';
 
-const API_BASE = 'http://localhost:8000/api/v1';
+const API_BASE = API_V1_BASE;
 
 export interface User {
   id: string;

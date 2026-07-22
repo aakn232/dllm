@@ -123,7 +123,7 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div className={`min-h-screen w-screen flex flex-col items-center justify-center font-sans transition-colors duration-200 px-4 ${
-      darkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
+      darkMode ? 'bg-black text-slate-100' : 'bg-slate-50 text-slate-900'
     }`}>
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/10 via-transparent to-transparent pointer-events-none -z-10" />
       
@@ -143,7 +143,7 @@ export const LoginPage: React.FC = () => {
 
         {/* 폼 카드 컨테이너 */}
         <div className={`rounded-2xl border p-6 shadow-2xl backdrop-blur-md transition-all ${
-          darkMode ? 'bg-slate-900/80 border-slate-800 shadow-slate-950/50' : 'bg-white border-slate-200 shadow-slate-200'
+          darkMode ? 'bg-neutral-900/80 border-neutral-800 shadow-slate-950/50' : 'bg-white border-slate-200 shadow-slate-200'
         }`}>
           {/* 탭 버튼 */}
           <div className="flex rounded-xl p-1 mb-6 bg-slate-800/40 border border-slate-700/30">

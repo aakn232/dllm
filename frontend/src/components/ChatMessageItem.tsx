@@ -45,22 +45,22 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message }) => 
   const isUser = message.role === 'user';
 
   return (
-    <div className={`py-5 px-4 md:px-6 flex gap-4 transition-colors group ${
+    <div className={`py-3.5 px-3 sm:py-5 sm:px-6 flex gap-2.5 sm:gap-4 transition-colors group ${
       isUser
         ? 'bg-transparent'
-        : (darkMode ? 'bg-slate-900/40 border-y border-slate-800/40' : 'bg-slate-100/70 border-y border-slate-200')
+        : (darkMode ? 'bg-neutral-900/40 border-y border-neutral-800/40' : 'bg-slate-100/70 border-y border-slate-200')
     }`}>
       {/* 아바타 */}
-      <div className="flex-shrink-0">
+      <div className="flex-shrink-0 pt-0.5">
         {isUser ? (
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+          <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center ${
             darkMode ? 'bg-slate-700 text-slate-200' : 'bg-slate-300 text-slate-700'
           }`}>
-            <User className="w-5 h-5" />
+            <User className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
         ) : (
-          <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
-            <Bot className="w-5 h-5" />
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
+            <Bot className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
         )}
       </div>
@@ -71,19 +71,19 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message }) => 
           darkMode ? 'text-slate-400' : 'text-slate-600'
         }`}>
           <span>{isUser ? '사용자' : 'DiffusionGemma AI'}</span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             {isUser && !isGenerating && (
               <>
                 <button
                   onClick={() => setIsEditing(!isEditing)}
-                  className={`p-1 transition-colors ${darkMode ? 'hover:text-slate-200' : 'hover:text-slate-900 text-slate-500'}`}
+                  className={`p-1 transition-colors cursor-pointer ${darkMode ? 'hover:text-slate-200' : 'hover:text-slate-900 text-slate-500'}`}
                   title="메시지 수정 후 재전송"
                 >
                   <Edit2 className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={handleDelete}
-                  className={`p-1 transition-colors ${
+                  className={`p-1 transition-colors cursor-pointer ${
                     darkMode
                       ? 'text-slate-500 hover:text-rose-400'
                       : 'text-slate-400 hover:text-rose-600'
@@ -96,15 +96,15 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message }) => 
             )}
 
             {!isUser && (
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-1.5 sm:gap-2.5 flex-wrap justify-end">
                 {((message.tps !== undefined && message.tps > 0) || (message.isStreaming && tps > 0)) ? (
-                  <div className={`px-2.5 py-0.5 rounded-full border flex items-center gap-1.5 font-mono text-[11px] transition-colors ${
+                  <div className={`px-2 py-0.5 rounded-full border flex items-center gap-1 font-mono text-[10px] sm:text-[11px] transition-colors ${
                     darkMode
                       ? 'bg-slate-800/80 border-slate-700/80 text-indigo-400'
                       : 'bg-white border-slate-300 text-indigo-600 shadow-sm'
                   }`}>
-                    <Gauge className={`w-3.5 h-3.5 ${message.isStreaming ? 'animate-spin text-indigo-500' : ''}`} />
-                    <span>{message.isStreaming ? tps : message.tps} tokens/sec</span>
+                    <Gauge className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${message.isStreaming ? 'animate-spin text-indigo-500' : ''}`} />
+                    <span>{message.isStreaming ? tps : message.tps} t/s</span>
                     {message.isStreaming && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
                   </div>
                 ) : null}
@@ -112,7 +112,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message }) => 
                 {!isGenerating && (
                   <button
                     onClick={() => regenerateMessage(message.id)}
-                    className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
                       darkMode
                         ? 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/80'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/80'
@@ -120,7 +120,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message }) => 
                     title="답변 다시 생성"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
-                    <span>재생성</span>
+                    <span className="hidden xs:inline">재생성</span>
                   </button>
                 )}
               </div>
@@ -150,7 +150,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message }) => 
               onChange={(e) => setEditContent(e.target.value)}
               onKeyDown={handleEditKeyDown}
               className={`w-full p-3 rounded-lg text-sm focus:outline-none focus:border-indigo-500 resize-none border ${
-                darkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white border-slate-300 text-slate-900 shadow-sm'
+                darkMode ? 'bg-neutral-800 border-neutral-700 text-slate-200' : 'bg-white border-slate-300 text-slate-900 shadow-sm'
               }`}
               rows={3}
             />

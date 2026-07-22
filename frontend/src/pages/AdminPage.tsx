@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useChatStore } from '../store/useChatStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { authFetch } from '../utils/apiClient';
+import { API_V1_BASE } from '../config';
 import { 
   ShieldAlert, CheckCircle, XCircle, Settings, UserX, 
   UserCheck, RefreshCw, Sliders, X, ArrowLeft 
@@ -45,7 +46,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
     setIsLoading(true);
     setErrorMsg('');
     try {
-      const res = await authFetch('http://localhost:8000/api/v1/admin/users');
+      const res = await authFetch(`${API_V1_BASE}/admin/users`);
       if (!res.ok) {
         throw new Error('사용자 목록을 불러오지 못했습니다.');
       }
@@ -67,7 +68,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
 
   const handleToggleActive = async (userId: string) => {
     try {
-      const res = await authFetch(`http://localhost:8000/api/v1/admin/users/${userId}/activate`, {
+      const res = await authFetch(`${API_V1_BASE}/admin/users/${userId}/activate`, {
         method: 'PUT',
       });
       if (!res.ok) {
@@ -105,7 +106,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
     };
 
     try {
-      const res = await authFetch(`http://localhost:8000/api/v1/admin/users/${selectedUser.id}/limit`, {
+      const res = await authFetch(`${API_V1_BASE}/admin/users/${selectedUser.id}/limit`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -127,17 +128,17 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
 
   return (
     <div className={`flex flex-col h-full w-full overflow-hidden ${
-      darkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
+      darkMode ? 'bg-black text-slate-100' : 'bg-slate-50 text-slate-900'
     }`}>
       {/* 어드민 헤더 */}
       <header className={`h-14 border-b px-6 flex items-center justify-between backdrop-blur-md transition-colors ${
-        darkMode ? 'border-slate-800/80 bg-slate-900/50' : 'border-slate-300/80 bg-white/70 shadow-sm'
+        darkMode ? 'border-neutral-800/80 bg-neutral-900/50' : 'border-slate-300/80 bg-white/70 shadow-sm'
       }`}>
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
             className={`p-1.5 rounded-lg border transition-colors ${
-              darkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-300' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700 shadow-sm'
+              darkMode ? 'bg-neutral-800 border-neutral-700 hover:bg-slate-700 text-slate-300' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700 shadow-sm'
             }`}
           >
             <ArrowLeft className="w-4 h-4" />
@@ -151,7 +152,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
         <button
           onClick={fetchUsers}
           className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors cursor-pointer ${
-            darkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-300' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700 shadow-sm'
+            darkMode ? 'bg-neutral-800 border-neutral-700 hover:bg-slate-700 text-slate-300' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700 shadow-sm'
           }`}
           disabled={isLoading}
         >
@@ -170,12 +171,12 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
         )}
 
         <div className={`rounded-2xl border overflow-hidden ${
-          darkMode ? 'bg-slate-900 border-slate-800 shadow-2xl shadow-slate-950/40' : 'bg-white border-slate-200 shadow-md'
+          darkMode ? 'bg-neutral-900 border-neutral-800 shadow-2xl shadow-slate-950/40' : 'bg-white border-slate-200 shadow-md'
         }`}>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className={`border-b ${darkMode ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-slate-100'} text-[11px] font-semibold uppercase tracking-wider text-slate-400`}>
+                <tr className={`border-b ${darkMode ? 'border-neutral-800 bg-neutral-900' : 'border-slate-200 bg-slate-100'} text-[11px] font-semibold uppercase tracking-wider text-slate-400`}>
                   <th className="p-4">사용자명</th>
                   <th className="p-4">이메일</th>
                   <th className="p-4 text-center">권한</th>
@@ -190,7 +191,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                   <tr 
                     key={u.id} 
                     className={`transition-colors ${
-                      darkMode ? 'hover:bg-slate-800/20' : 'hover:bg-slate-50'
+                      darkMode ? 'hover:bg-neutral-800/20' : 'hover:bg-slate-50'
                     }`}
                   >
                     <td className="p-4 font-semibold text-slate-200">
@@ -249,7 +250,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                         <button
                           onClick={() => handleOpenLimitModal(u)}
                           className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
-                            darkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-300' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700 shadow-sm'
+                            darkMode ? 'bg-neutral-800 border-neutral-700 hover:bg-slate-700 text-slate-300' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700 shadow-sm'
                           }`}
                           title="사용자 일일 한도 설정"
                         >
@@ -289,7 +290,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
           <div 
             onClick={(e) => e.stopPropagation()}
             className={`w-full max-w-md rounded-2xl border p-6 shadow-2xl transition-all ${
-              darkMode ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
+              darkMode ? 'bg-neutral-900 border-neutral-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
             }`}
           >
             <div className="flex items-center justify-between mb-4 border-b pb-3 border-slate-800/40">
@@ -322,7 +323,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                       className={`py-2 text-[10px] font-semibold border rounded-lg transition-colors cursor-pointer ${
                         limitMode === tab.value
                           ? 'bg-indigo-600 border-indigo-600 text-white'
-                          : (darkMode ? 'bg-slate-800/50 border-slate-700/60 text-slate-400 hover:text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-600 hover:bg-slate-200')
+                          : (darkMode ? 'bg-neutral-800/50 border-neutral-700/60 text-slate-400 hover:text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-600 hover:bg-slate-200')
                       }`}
                     >
                       {tab.label}
@@ -373,7 +374,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                 type="button"
                 onClick={() => setSelectedUser(null)}
                 className={`px-4 py-2 rounded-lg border text-xs font-semibold hover:opacity-85 transition-opacity cursor-pointer ${
-                  darkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-300 text-slate-700 shadow-sm'
+                  darkMode ? 'bg-neutral-800 border-neutral-700 text-slate-300' : 'bg-slate-100 border-slate-300 text-slate-700 shadow-sm'
                 }`}
               >
                 취소

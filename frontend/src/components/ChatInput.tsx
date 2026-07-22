@@ -64,22 +64,22 @@ export const ChatInput: React.FC = () => {
   };
 
   return (
-    <div className={`p-4 border-t max-w-4xl mx-auto w-full rounded-t-2xl shadow-xl backdrop-blur-md transition-colors ${
-      darkMode ? 'border-slate-800 bg-slate-900/90' : 'border-slate-300 bg-white/90 shadow-slate-200'
+    <div className={`p-2.5 sm:p-4 border-t max-w-4xl mx-auto w-full rounded-t-2xl shadow-xl backdrop-blur-md transition-colors ${
+      darkMode ? 'border-neutral-800 bg-neutral-900/90' : 'border-slate-300 bg-white/90 shadow-slate-200'
     }`}>
       {/* 첨부 이미지 미리보기 */}
       {attachments.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-3">
+        <div className="flex flex-wrap gap-2 mb-2.5">
           {attachments.map((att, index) => (
             <div key={index} className="relative group">
               <img
                 src={att.file_url}
                 alt="미리보기"
-                className="w-16 h-16 object-cover rounded-lg border border-slate-700"
+                className="w-16 h-16 object-cover rounded-lg border border-slate-700 shadow-sm"
               />
               <button
                 onClick={() => setAttachments(prev => prev.filter((_, i) => i !== index))}
-                className="absolute -top-1.5 -right-1.5 bg-rose-600 text-white rounded-full p-0.5 shadow hover:bg-rose-500 transition-colors"
+                className="absolute -top-1.5 -right-1.5 bg-rose-600 text-white rounded-full p-1 shadow hover:bg-rose-500 transition-colors cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -92,7 +92,7 @@ export const ChatInput: React.FC = () => {
         onDragOver={(e) => e.preventDefault()}
         onDrop={handleDrop}
         className={`flex flex-col rounded-xl border focus-within:border-indigo-500 transition-colors ${
-          darkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-slate-50 border-slate-300'
+          darkMode ? 'bg-neutral-800/80 border-neutral-700' : 'bg-slate-50 border-slate-300'
         }`}
       >
         <textarea
@@ -100,18 +100,18 @@ export const ChatInput: React.FC = () => {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          placeholder="메시지를 입력하세요... (Enter 또는 Ctrl+Enter: 전송, Shift+Enter: 줄바꿈, 이미지 붙여넣기/드롭 가능)"
+          placeholder="메시지를 입력하세요..."
           rows={2}
-          className={`w-full p-3 bg-transparent text-sm focus:outline-none resize-none ${
+          className={`w-full p-3 bg-transparent text-base sm:text-sm focus:outline-none resize-none ${
             darkMode ? 'text-slate-100 placeholder-slate-400' : 'text-slate-900 placeholder-slate-400'
           }`}
         />
 
         {/* 툴바 (Thinking 모드 토글, 파일 첨부, 전송/중단 버튼) */}
         <div className={`flex items-center justify-between px-3 py-2 border-t text-xs ${
-          darkMode ? 'border-slate-700/50' : 'border-slate-200'
+          darkMode ? 'border-neutral-700/50' : 'border-slate-200'
         }`}>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* 파일 선택 숨김 인풋 */}
             <input
               type="file"
@@ -123,9 +123,10 @@ export const ChatInput: React.FC = () => {
             />
             <button
               onClick={() => fileInputRef.current?.click()}
-              className={`flex items-center gap-1.5 transition-colors ${
-                darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-800'
+              className={`flex items-center gap-1.5 p-1.5 rounded-lg transition-colors cursor-pointer ${
+                darkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-neutral-700/50' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'
               }`}
+              title="이미지 첨부"
             >
               <Paperclip className="w-4 h-4" />
               <span className="hidden sm:inline">이미지 첨부</span>
@@ -134,7 +135,7 @@ export const ChatInput: React.FC = () => {
             {/* Thinking 모드 토글 스위치 */}
             <button
               onClick={() => setEnableThinking(!enableThinking)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full font-medium transition-colors ${
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full font-medium transition-colors cursor-pointer ${
                 enableThinking
                   ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
                   : (darkMode ? 'bg-slate-700/50 text-slate-400' : 'bg-slate-200 text-slate-500')
@@ -150,7 +151,7 @@ export const ChatInput: React.FC = () => {
             {isGenerating ? (
               <button
                 onClick={stopGeneration}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-medium rounded-lg transition-colors"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-medium rounded-lg transition-colors cursor-pointer"
               >
                 <Square className="w-3.5 h-3.5 fill-current" />
                 <span>중단</span>
@@ -159,7 +160,7 @@ export const ChatInput: React.FC = () => {
               <button
                 onClick={handleSend}
                 disabled={!input.trim() && attachments.length === 0}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-medium rounded-lg transition-colors"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-medium rounded-lg transition-colors cursor-pointer"
               >
                 <Send className="w-3.5 h-3.5" />
                 <span>전송</span>

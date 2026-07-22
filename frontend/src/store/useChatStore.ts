@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import type { ChatSession, ChatMessage, Attachment } from '../types/chat';
 import { authFetch } from '../utils/apiClient';
+import { API_V1_BASE } from '../config';
 
-const API_BASE = 'http://localhost:8000/api/v1';
+const API_BASE = API_V1_BASE;
 
 interface ChatStore {
   sessions: ChatSession[];

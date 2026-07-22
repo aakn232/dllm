@@ -28,6 +28,7 @@ export const SidebarToggleIcon: React.FC<{ className?: string }> = ({ className 
 interface SidebarProps {
   isOpen: boolean;
   onToggle: () => void;
+  onClose?: () => void;
   onOpenStatus: () => void;
   onOpenAdmin?: () => void;
   onOpenProfile?: () => void;
@@ -37,12 +38,19 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ 
   isOpen, 
   onToggle, 
+  onClose,
   onOpenStatus, 
   onOpenAdmin, 
   onOpenProfile,
   onOpenPassword
 }) => {
   const navigate = useNavigate();
+
+  const handleMobileClose = () => {
+    if (window.innerWidth < 768 && onClose) {
+      onClose();
+    }
+  };
   const {
     sessions,
     currentSessionId,
@@ -110,14 +118,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {isOpen && (
         <div
           onClick={onToggle}
-          className="fixed inset-0 bg-black/60 z-40 md:hidden"
+          className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm"
         />
       )}
 
       <aside className={`
-        fixed md:static inset-y-0 left-0 z-30
+        fixed md:static inset-y-0 left-0 z-50
         border-r flex flex-col justify-between transition-all duration-300 ease-in-out select-none
-        ${darkMode ? 'bg-slate-900 border-slate-800/80 text-slate-100' : 'bg-slate-50 border-slate-200 text-slate-900'}
+        ${darkMode ? 'bg-neutral-900 border-neutral-800/80 text-slate-100' : 'bg-slate-50 border-slate-200 text-slate-900'}
         ${isOpen ? 'w-64 translate-x-0' : 'w-16 -translate-x-full md:translate-x-0'}
       `}>
         {/* ======================= 1. 사이드바가 펼쳐졌을 때 (Expanded - 사진 2 스타일) ======================= */}
@@ -126,7 +134,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {/* 상단 Header (서비스 타이틀 & 우측 아이콘 버튼들: 돋보기, 사이드바 닫기) */}
             <div className="p-3.5 flex items-center justify-between">
               <button
-                onClick={() => { goHome(); navigate('/'); }}
+                onClick={() => { goHome(); navigate('/'); handleMobileClose(); }}
                 className="font-bold flex items-center gap-2 text-base hover:opacity-85 transition-opacity text-left cursor-pointer"
                 title="홈 화면으로 이동"
               >
@@ -141,8 +149,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onClick={() => setShowSearch(!showSearch)}
                   className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                     showSearch
-                      ? (darkMode ? 'bg-slate-800 text-indigo-400' : 'bg-slate-200 text-indigo-600')
-                      : (darkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70')
+                      ? (darkMode ? 'bg-neutral-800 text-indigo-400' : 'bg-slate-200 text-indigo-600')
+                      : (darkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-neutral-800/60' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70')
                   }`}
                   title="검색"
                 >
@@ -167,7 +175,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {/* 새 대화 시작 버튼 (사진 2 스타일) */}
             <div className="px-3 pb-2 space-y-2">
               <button
-                onClick={() => { createSession(); navigate('/'); }}
+                onClick={() => { createSession(); navigate('/'); handleMobileClose(); }}
                 className={`w-full py-2 px-3 rounded-xl text-xs font-medium flex items-center justify-between transition-colors cursor-pointer ${
                   darkMode
                     ? 'bg-slate-800/80 hover:bg-slate-800 text-slate-200 border border-slate-700/50'
@@ -211,12 +219,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 return (
                   <div
                     key={session.id}
-                    onClick={() => { selectSession(session.id); navigate(`/c/${session.id}`); }}
+                    onClick={() => { selectSession(session.id); navigate(`/c/${session.id}`); handleMobileClose(); }}
                     className={`
                       group flex items-center justify-between px-2.5 py-2 rounded-xl text-xs cursor-pointer transition-colors
                       ${isSelected
-                        ? (darkMode ? 'bg-slate-800 text-indigo-300 font-semibold' : 'bg-slate-200/80 text-indigo-700 font-semibold')
-                        : (darkMode ? 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200' : 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900')}
+                        ? (darkMode ? 'bg-neutral-800 text-indigo-300 font-semibold' : 'bg-slate-200/80 text-indigo-700 font-semibold')
+                        : (darkMode ? 'text-slate-400 hover:bg-neutral-800/50 hover:text-slate-200' : 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900')}
                     `}
                   >
                     <div className="flex items-center gap-2.5 min-w-0 flex-1">
@@ -264,7 +272,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
 
             {/* 하단 유저 프로필 및 계정 팝업 카드 */}
-            <div className={`p-3 border-t relative text-xs ${darkMode ? 'border-slate-800' : 'border-slate-200'}`} ref={settingsRef}>
+            <div className={`p-3 border-t relative text-xs ${darkMode ? 'border-neutral-800' : 'border-slate-200'}`} ref={settingsRef}>
               {/* 관리자 패널 & 백엔드 상태 점검 (프로필 위쪽에 밖으로 배치) */}
               {user?.is_admin && (
                 <div className="mb-2 space-y-1">
@@ -272,7 +280,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <button
                       onClick={() => onOpenAdmin()}
                       className={`w-full flex items-center gap-3 p-2 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
-                        darkMode ? 'hover:bg-slate-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
+                        darkMode ? 'hover:bg-neutral-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
                       }`}
                     >
                       <Shield className="w-4 h-4 text-amber-500" />
@@ -284,7 +292,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <button
                       onClick={() => onOpenStatus()}
                       className={`w-full flex items-center gap-3 p-2 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
-                        darkMode ? 'hover:bg-slate-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
+                        darkMode ? 'hover:bg-neutral-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
                       }`}
                     >
                       <Activity className="w-4 h-4 text-indigo-400" />
@@ -310,7 +318,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         setIsSettingsOpen(false);
                       }}
                       className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors cursor-pointer ${
-                        darkMode ? 'hover:bg-slate-800/80' : 'hover:bg-slate-100/80'
+                        darkMode ? 'hover:bg-neutral-800/80' : 'hover:bg-slate-100/80'
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
@@ -328,7 +336,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </button>
                   )}
 
-                  <div className={`my-1 border-b ${darkMode ? 'border-slate-800' : 'border-slate-100'}`} />
+                  <div className={`my-1 border-b ${darkMode ? 'border-neutral-800' : 'border-slate-100'}`} />
 
                   {/* 메뉴 항목들 */}
                   {onOpenPassword && (
@@ -338,7 +346,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         setIsSettingsOpen(false);
                       }}
                       className={`w-full flex items-center gap-3 p-2 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
-                        darkMode ? 'hover:bg-slate-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
+                        darkMode ? 'hover:bg-neutral-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
                       }`}
                     >
                       <KeyRound className="w-4 h-4 text-slate-500" />
@@ -352,7 +360,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       setIsSettingsOpen(false);
                     }}
                     className={`w-full flex items-center gap-3 p-2 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
-                      darkMode ? 'hover:bg-slate-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
+                      darkMode ? 'hover:bg-neutral-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
                     }`}
                   >
                     <Sliders className="w-4 h-4 text-slate-500" />
@@ -364,14 +372,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       toggleDarkMode();
                     }}
                     className={`w-full flex items-center gap-3 p-2 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
-                      darkMode ? 'hover:bg-slate-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
+                      darkMode ? 'hover:bg-neutral-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
                     }`}
                   >
                     {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-500" />}
                     <span>테마 설정 ({darkMode ? '라이트 모드' : '다크 모드'})</span>
                   </button>
 
-                  <div className={`my-1 border-b ${darkMode ? 'border-slate-800' : 'border-slate-100'}`} />
+                  <div className={`my-1 border-b ${darkMode ? 'border-neutral-800' : 'border-slate-100'}`} />
 
                   <button
                     onClick={() => {
@@ -392,8 +400,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onClick={() => setIsSettingsOpen(!isSettingsOpen)}
                   className={`w-full flex items-center justify-between p-2 rounded-xl transition-all cursor-pointer ${
                     isSettingsOpen
-                      ? (darkMode ? 'bg-slate-800 text-slate-100' : 'bg-slate-200/80 text-slate-900')
-                      : (darkMode ? 'bg-slate-800/40 text-slate-300 hover:bg-slate-800/80' : 'bg-slate-200/50 text-slate-800 hover:bg-slate-200/90')
+                      ? (darkMode ? 'bg-neutral-800 text-slate-100' : 'bg-slate-200/80 text-slate-900')
+                      : (darkMode ? 'bg-neutral-800/40 text-slate-300 hover:bg-slate-800/80' : 'bg-slate-200/50 text-slate-800 hover:bg-slate-200/90')
                   }`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -420,7 +428,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 onClick={onToggle}
                 className={`p-2 rounded-xl transition-colors cursor-pointer ${
-                  darkMode ? 'text-slate-400 hover:text-slate-100 hover:bg-slate-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                  darkMode ? 'text-slate-400 hover:text-slate-100 hover:bg-neutral-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
                 }`}
                 title="사이드바 열기"
               >
@@ -431,7 +439,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 onClick={() => { createSession(); navigate('/'); }}
                 className={`p-2 rounded-xl transition-colors cursor-pointer ${
-                  darkMode ? 'text-slate-400 hover:text-slate-100 hover:bg-slate-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                  darkMode ? 'text-slate-400 hover:text-slate-100 hover:bg-neutral-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
                 }`}
                 title="새 채팅"
               >
@@ -442,7 +450,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 onClick={onToggle}
                 className={`p-2 rounded-xl transition-colors cursor-pointer ${
-                  darkMode ? 'text-slate-400 hover:text-slate-100 hover:bg-slate-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                  darkMode ? 'text-slate-400 hover:text-slate-100 hover:bg-neutral-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
                 }`}
                 title="대화 검색"
               >
@@ -453,7 +461,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 onClick={onToggle}
                 className={`p-2 rounded-xl transition-colors cursor-pointer ${
-                  darkMode ? 'text-slate-400 hover:text-slate-100 hover:bg-slate-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                  darkMode ? 'text-slate-400 hover:text-slate-100 hover:bg-neutral-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
                 }`}
                 title="대화 목록"
               >
@@ -469,7 +477,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <button
                       onClick={onOpenAdmin}
                       className={`p-2 rounded-xl transition-colors cursor-pointer ${
-                        darkMode ? 'text-slate-400 hover:text-slate-100 hover:bg-slate-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                        darkMode ? 'text-slate-400 hover:text-slate-100 hover:bg-neutral-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
                       }`}
                       title="관리자 패널"
                     >
@@ -480,7 +488,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <button
                       onClick={onOpenStatus}
                       className={`p-2 rounded-xl transition-colors cursor-pointer ${
-                        darkMode ? 'text-slate-400 hover:text-slate-100 hover:bg-slate-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                        darkMode ? 'text-slate-400 hover:text-slate-100 hover:bg-neutral-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
                       }`}
                       title="백엔드 상태 점검"
                     >

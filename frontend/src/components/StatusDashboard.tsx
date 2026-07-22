@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useChatStore } from '../store/useChatStore';
+import { API_V1_BASE } from '../config';
 import { Activity, Server, Database, Key, RefreshCw, X, AlertTriangle, CheckCircle2, XCircle, Clock, Zap } from 'lucide-react';
 
 interface StatusData {
@@ -60,7 +61,7 @@ export const StatusDashboard: React.FC<StatusDashboardProps> = ({ isOpen, onClos
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('http://localhost:8000/api/v1/status');
+      const res = await fetch(`${API_V1_BASE}/status`);
       if (res.ok) {
         const json = await res.json();
         setData(json);
@@ -99,12 +100,12 @@ export const StatusDashboard: React.FC<StatusDashboardProps> = ({ isOpen, onClos
       <div 
         onClick={(e) => e.stopPropagation()}
         className={`w-full max-w-4xl max-h-[90vh] rounded-2xl border flex flex-col overflow-hidden shadow-2xl transition-all ${
-          darkMode ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-300 text-slate-900'
+          darkMode ? 'bg-neutral-900 border-neutral-800 text-slate-100' : 'bg-white border-slate-300 text-slate-900'
         }`}
       >
         {/* 상단 헤더 */}
         <div className={`px-6 py-4 border-b flex items-center justify-between ${
-          darkMode ? 'border-slate-800 bg-slate-900/50' : 'border-slate-200 bg-slate-50'
+          darkMode ? 'border-neutral-800 bg-neutral-900/50' : 'border-slate-200 bg-slate-50'
         }`}>
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
@@ -134,7 +135,7 @@ export const StatusDashboard: React.FC<StatusDashboardProps> = ({ isOpen, onClos
               onClick={fetchStatus}
               disabled={loading}
               className={`p-2 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-colors ${
-                darkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : 'bg-slate-100 border-slate-300 hover:bg-slate-200'
+                darkMode ? 'bg-neutral-800 border-neutral-700 hover:bg-slate-700' : 'bg-slate-100 border-slate-300 hover:bg-slate-200'
               }`}
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
@@ -142,7 +143,7 @@ export const StatusDashboard: React.FC<StatusDashboardProps> = ({ isOpen, onClos
             </button>
             <button
               onClick={onClose}
-              className={`p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-200 text-slate-600'}`}
+              className={`p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-neutral-800 text-slate-400' : 'hover:bg-slate-200 text-slate-600'}`}
             >
               <X className="w-5 h-5" />
             </button>
@@ -166,7 +167,7 @@ export const StatusDashboard: React.FC<StatusDashboardProps> = ({ isOpen, onClos
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* 1. 백엔드 프록시 서버 카드 */}
               <div className={`p-4 rounded-xl border space-y-3 ${
-                darkMode ? 'bg-slate-800/40 border-slate-700/60' : 'bg-slate-50 border-slate-200'
+                darkMode ? 'bg-neutral-800/40 border-neutral-700/60' : 'bg-slate-50 border-slate-200'
               }`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 font-semibold text-sm">
@@ -185,7 +186,7 @@ export const StatusDashboard: React.FC<StatusDashboardProps> = ({ isOpen, onClos
 
               {/* 2. 데이터베이스 카드 */}
               <div className={`p-4 rounded-xl border space-y-3 ${
-                darkMode ? 'bg-slate-800/40 border-slate-700/60' : 'bg-slate-50 border-slate-200'
+                darkMode ? 'bg-neutral-800/40 border-neutral-700/60' : 'bg-slate-50 border-slate-200'
               }`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 font-semibold text-sm">
@@ -207,7 +208,7 @@ export const StatusDashboard: React.FC<StatusDashboardProps> = ({ isOpen, onClos
 
               {/* 3. NVIDIA NIM API 카드 */}
               <div className={`p-4 rounded-xl border space-y-3 ${
-                darkMode ? 'bg-slate-800/40 border-slate-700/60' : 'bg-slate-50 border-slate-200'
+                darkMode ? 'bg-neutral-800/40 border-neutral-700/60' : 'bg-slate-50 border-slate-200'
               }`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 font-semibold text-sm">
@@ -265,7 +266,7 @@ export const StatusDashboard: React.FC<StatusDashboardProps> = ({ isOpen, onClos
               </div>
 
               <div className={`rounded-xl border font-mono text-xs overflow-hidden max-h-64 overflow-y-auto ${
-                darkMode ? 'bg-black/60 border-slate-800' : 'bg-slate-900 text-slate-200 border-slate-300'
+                darkMode ? 'bg-black/60 border-neutral-800' : 'bg-neutral-900 text-slate-200 border-slate-300'
               }`}>
                 {data.logs.recent_logs.length === 0 ? (
                   <div className="p-4 text-center text-slate-500">
@@ -297,7 +298,7 @@ export const StatusDashboard: React.FC<StatusDashboardProps> = ({ isOpen, onClos
 
         {/* 하단 푸터 */}
         <div className={`px-6 py-3 border-t flex items-center justify-between text-xs text-slate-400 ${
-          darkMode ? 'border-slate-800 bg-slate-900/50' : 'border-slate-200 bg-slate-50'
+          darkMode ? 'border-neutral-800 bg-neutral-900/50' : 'border-slate-200 bg-slate-50'
         }`}>
           <span>최종 갱신: {data?.timestamp || '확인 중...'}</span>
           <button

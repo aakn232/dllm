@@ -32,12 +32,12 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
       <div
         onClick={(e) => e.stopPropagation()}
         className={`w-full max-w-md rounded-2xl shadow-2xl border flex flex-col overflow-hidden transition-all ${
-          darkMode ? 'bg-slate-900/95 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
+          darkMode ? 'bg-neutral-900/95 border-neutral-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
         }`}
       >
         {/* 모달 헤더 */}
         <div className={`p-4 px-6 border-b flex items-center justify-between ${
-          darkMode ? 'border-slate-800 bg-slate-900/80' : 'border-slate-100 bg-slate-50'
+          darkMode ? 'border-neutral-800 bg-neutral-900/80' : 'border-slate-100 bg-slate-50'
         }`}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-pink-400 text-white flex items-center justify-center font-bold text-sm flex-shrink-0 uppercase shadow-sm">
@@ -64,7 +64,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
         {/* 모달 본문 (기본 프로필 정보만 표시) */}
         <div className="p-6 space-y-4">
           <div className={`rounded-xl border p-4 transition-all ${
-            darkMode ? 'bg-slate-800/40 border-slate-700/60' : 'bg-slate-50 border-slate-200'
+            darkMode ? 'bg-neutral-800/40 border-neutral-700/60' : 'bg-slate-50 border-slate-200'
           }`}>
             <h3 className="text-xs font-bold mb-3 uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
               <User className="w-3.5 h-3.5" />
@@ -103,12 +103,12 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
 
         {/* 모달 푸터 */}
         <div className={`p-4 px-6 border-t flex items-center justify-end ${
-          darkMode ? 'border-slate-800 bg-slate-900/90' : 'border-slate-200 bg-slate-50'
+          darkMode ? 'border-neutral-800 bg-neutral-900/90' : 'border-slate-200 bg-slate-50'
         }`}>
           <button
             onClick={onClose}
             className={`px-4 py-2 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
-              darkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+              darkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-neutral-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
             }`}
           >
             닫기

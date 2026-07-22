@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <!-- Core Faceted Gem -->
+  <g transform="translate(0, 0)">
+    <polygon points="50,50 50.00,34.00 63.86,42.00" fill="#79D8F6" />
+<polygon points="50,50 63.86,42.00 63.86,58.00" fill="#4FC3D8" />
+<polygon points="50,50 63.86,58.00 50.00,66.00" fill="#38A1B7" />
+<polygon points="50,50 50.00,66.00 36.14,58.00" fill="#4FC3D8" />
+<polygon points="50,50 36.14,58.00 36.14,42.00" fill="#A78BFA" />
+<polygon points="50,50 36.14,42.00 50.00,34.00" fill="#8E69F5" />
+    <!-- Add some highlights -->
+    <polygon points="50,50 50,34 63.86,42" fill="#FFFFFF" opacity="0.3" />
+    <polygon points="50,50 36.14,42 50,34" fill="#FFFFFF" opacity="0.1" />
+  </g>
+  
+  <!-- Diffusion Waves (3 sweeping arcs) -->
+  <!-- Inner waves -->
+  <path d="M 56.73 24.89 A 26 26 0 0 1 75.11 56.73" stroke="#79D8F6" stroke-width="4" stroke-linecap="round" fill="none" />
+  <path d="M 68.38 68.38 A 26 26 0 0 1 31.62 68.38" stroke="#A78BFA" stroke-width="4" stroke-linecap="round" fill="none" />
+  <path d="M 24.89 56.73 A 26 26 0 0 1 43.27 24.89" stroke="#4FC3D8" stroke-width="4" stroke-linecap="round" fill="none" />
+  
+  <!-- Outer waves -->
+  <path d="M 76.87 23.13 A 38 38 0 0 1 76.87 76.87" stroke="#4FC3D8" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.8" />
+  <path d="M 59.84 86.71 A 38 38 0 0 1 13.29 59.84" stroke="#79D8F6" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.8" />
+  <path d="M 13.29 40.16 A 38 38 0 0 1 59.84 13.29" stroke="#A78BFA" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.8" />
+</svg>

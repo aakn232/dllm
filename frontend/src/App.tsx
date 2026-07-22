@@ -12,7 +12,7 @@ import { ProfileModal } from './components/ProfileModal';
 import { PasswordChangeModal } from './components/PasswordChangeModal';
 import { LoginPage } from './pages/LoginPage';
 import { AdminPage } from './pages/AdminPage';
-import { Menu, Sparkles } from 'lucide-react';
+import { Menu, Sparkles, Plus } from 'lucide-react';
 
 const ChatView: React.FC = () => {
   const { sessionId } = useParams<{ sessionId?: string }>();
@@ -46,7 +46,9 @@ export const App: React.FC = () => {
   const { fetchCustomInstructions } = useSettingsStore();
   const { isAuthenticated, isLoading, user, checkAuth } = useAuthStore();
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    return typeof window !== 'undefined' ? window.innerWidth >= 768 : true;
+  });
   const [statusOpen, setStatusOpen] = useState(false);
   const [isAdminView, setIsAdminView] = useState(false);
   const [isProfileView, setIsProfileView] = useState(false);
@@ -111,7 +113,7 @@ export const App: React.FC = () => {
   if (isLoading) {
     return (
       <div className={`h-screen w-screen flex items-center justify-center font-sans ${
-        darkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
+        darkMode ? 'bg-black text-slate-100' : 'bg-slate-50 text-slate-900'
       }`}>
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-4 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
@@ -131,7 +133,7 @@ export const App: React.FC = () => {
 
   return (
     <div className={`flex h-screen w-screen overflow-hidden font-sans transition-colors duration-200 ${
-      darkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
+      darkMode ? 'bg-black text-slate-100' : 'bg-slate-50 text-slate-900'
     }`}>
       <Routes>
         <Route path="/" element={<ChatView />} />
@@ -142,24 +144,48 @@ export const App: React.FC = () => {
       <Sidebar
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(!sidebarOpen)}
-        onOpenStatus={() => setStatusOpen(true)}
-        onOpenAdmin={() => { setIsAdminView(true); setIsProfileView(false); setIsPasswordView(false); }}
-        onOpenProfile={() => { setIsProfileView(true); setIsPasswordView(false); }}
-        onOpenPassword={() => { setIsPasswordView(true); setIsProfileView(false); }}
+        onClose={() => setSidebarOpen(false)}
+        onOpenStatus={() => { setStatusOpen(true); setSidebarOpen(false); }}
+        onOpenAdmin={() => { setIsAdminView(true); setIsProfileView(false); setIsPasswordView(false); setSidebarOpen(false); }}
+        onOpenProfile={() => { setIsProfileView(true); setIsPasswordView(false); setSidebarOpen(false); }}
+        onOpenPassword={() => { setIsPasswordView(true); setIsProfileView(false); setSidebarOpen(false); }}
       />
 
       {/* 메인 영역 */}
       <main className="flex-1 flex flex-col h-full overflow-hidden relative">
-        {/* 모바일 전용 사이드바 토글 버튼 */}
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className={`md:hidden fixed top-3 left-3 z-30 p-2 rounded-lg border backdrop-blur-md shadow-sm transition-colors ${
-            darkMode ? 'border-slate-800 bg-slate-900/80 text-slate-300 hover:text-white' : 'border-slate-300 bg-white/80 text-slate-700 hover:text-black'
-          }`}
-          title={sidebarOpen ? "사이드바 닫기" : "사이드바 열기"}
-        >
-          <Menu className="w-5 h-5" />
-        </button>
+        {/* 모바일 전용 상단 헤더 바 */}
+        <header className={`md:hidden flex items-center justify-between px-3.5 py-2.5 border-b backdrop-blur-md z-20 transition-colors ${
+          darkMode ? 'border-neutral-800 bg-neutral-900/90 text-slate-100' : 'border-slate-200 bg-white/90 text-slate-800 shadow-sm'
+        }`}>
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className={`p-2 rounded-lg border transition-colors cursor-pointer ${
+              darkMode ? 'border-neutral-700 bg-neutral-800 text-slate-300 hover:text-white' : 'border-slate-300 bg-slate-100 text-slate-700 hover:text-black'
+            }`}
+            title={sidebarOpen ? "사이드바 닫기" : "사이드바 열기"}
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+
+          <button
+            onClick={() => { goHome(); navigate('/'); setSidebarOpen(false); }}
+            className="flex items-center gap-2 font-semibold text-sm cursor-pointer hover:opacity-85"
+            title="홈으로 이동"
+          >
+            <span className="w-2 h-2 rounded-full bg-indigo-500 flex-shrink-0 animate-pulse" />
+            <span className="truncate max-w-[160px] xs:max-w-[200px]">Diffusion Gemma</span>
+          </button>
+
+          <button
+            onClick={() => { createSession(); navigate('/'); setSidebarOpen(false); }}
+            className={`p-2 rounded-lg border transition-colors cursor-pointer ${
+              darkMode ? 'border-neutral-700 bg-neutral-800 text-indigo-400' : 'border-slate-300 bg-slate-100 text-indigo-600'
+            }`}
+            title="새 채팅 시작"
+          >
+            <Plus className="w-5 h-5" />
+          </button>
+        </header>
 
         {/* 메시지 리스트 스크롤 영역 */}
         <div className="flex-1 overflow-y-auto">

@@ -74,12 +74,12 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, on
       <div
         onClick={(e) => e.stopPropagation()}
         className={`w-full max-w-xl rounded-2xl shadow-2xl border flex flex-col max-h-[90vh] overflow-hidden transition-all ${
-          darkMode ? 'bg-slate-900/95 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
+          darkMode ? 'bg-neutral-900/95 border-neutral-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
         }`}
       >
         {/* 모달 헤더 */}
         <div className={`p-4 px-6 border-b flex items-center justify-between ${
-          darkMode ? 'border-slate-800 bg-slate-900/80' : 'border-slate-100 bg-slate-50'
+          darkMode ? 'border-neutral-800 bg-neutral-900/80' : 'border-slate-100 bg-slate-50'
         }`}>
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
@@ -122,7 +122,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, on
 
           {/* 기본 프로필 정보 */}
           <section className={`rounded-xl border p-4 transition-all ${
-            darkMode ? 'bg-slate-800/40 border-slate-700/60' : 'bg-slate-50 border-slate-200'
+            darkMode ? 'bg-neutral-800/40 border-neutral-700/60' : 'bg-slate-50 border-slate-200'
           }`}>
             <h3 className="text-xs font-bold mb-3 uppercase tracking-wider text-indigo-400">
               기본 프로필 정보
@@ -149,7 +149,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, on
 
           {/* 비밀번호 변경 */}
           <section className={`rounded-xl border p-4 transition-all ${
-            darkMode ? 'bg-slate-800/40 border-slate-700/60' : 'bg-slate-50 border-slate-200'
+            darkMode ? 'bg-neutral-800/40 border-neutral-700/60' : 'bg-slate-50 border-slate-200'
           }`}>
             <h3 className="text-xs font-bold mb-3 uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
               <KeyRound className="w-3.5 h-3.5" />
@@ -237,12 +237,12 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, on
 
         {/* 모달 푸터 */}
         <div className={`p-4 px-6 border-t flex items-center justify-end ${
-          darkMode ? 'border-slate-800 bg-slate-900/90' : 'border-slate-200 bg-slate-50'
+          darkMode ? 'border-neutral-800 bg-neutral-900/90' : 'border-slate-200 bg-slate-50'
         }`}>
           <button
             onClick={onClose}
             className={`px-4 py-2 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
-              darkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+              darkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-neutral-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
             }`}
           >
             닫기
