@@ -135,3 +135,41 @@ class PasswordChangeRequest(BaseModel):
     current_password: str = Field(..., min_length=4)
     new_password: str = Field(..., min_length=4)
 
+class AdminPasswordResetRequest(BaseModel):
+    new_password: str = Field(..., min_length=4)
+
+class UserAdminDetailView(BaseModel):
+    id: str
+    username: str
+    email: str
+    is_admin: bool
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+    hashed_password: str
+    settings: Optional[UserSettingsSchema] = None
+    custom_instruction: Optional[CustomInstructionSchema] = None
+    today_token_count: int = 0
+    today_request_count: int = 0
+    limit_mode: str = "both"
+    daily_token_limit: Optional[int] = None
+    daily_request_limit: Optional[int] = None
+
+class AdminChatSessionView(BaseModel):
+    id: str
+    user_id: Optional[str] = None
+    title: str
+    created_at: datetime
+    updated_at: datetime
+    message_count: int = 0
+
+class AdminChatMessageView(BaseModel):
+    id: str
+    session_id: str
+    role: str
+    content: str
+    thinking_content: Optional[str] = None
+    created_at: datetime
+    attachments: List[AttachmentSchema] = []
+
+

@@ -4,9 +4,18 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from backend.database import get_db
-from backend.models import User, UsageLimit, UsageLog
-from backend.schemas import UserAdminView, UsageLimitUpdate, UserResponse
+from backend.models import User, UserSettings, UsageLimit, UsageLog, CustomInstruction, ChatSession, ChatMessage
+from backend.schemas import (
+    UserAdminView, 
+    UsageLimitUpdate, 
+    UserResponse,
+    UserAdminDetailView,
+    AdminChatSessionView,
+    AdminChatMessageView,
+    AdminPasswordResetRequest
+)
 from backend.dependencies import get_current_admin
+from backend.routers.auth import get_password_hash
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
@@ -71,6 +80,98 @@ def get_users_list(
         })
         
     return result
+
+@router.get("/users/{user_id}/details", response_model=UserAdminDetailView)
+def get_user_details(
+    user_id: str,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+
+    today = date.today()
+    log = db.query(UsageLog).filter(
+        UsageLog.user_id == user_id,
+        UsageLog.date == today
+    ).first()
+    
+    limit = db.query(UsageLimit).filter(UsageLimit.user_id == user_id).first()
+
+    return {
+        "id": target_user.id,
+        "username": target_user.username,
+        "email": target_user.email,
+        "is_admin": target_user.is_admin,
+        "is_active": target_user.is_active,
+        "created_at": target_user.created_at,
+        "updated_at": target_user.updated_at,
+        "hashed_password": target_user.hashed_password,
+        "settings": target_user.settings,
+        "custom_instruction": target_user.custom_instruction,
+        "today_token_count": log.token_count if log else 0,
+        "today_request_count": log.request_count if log else 0,
+        "limit_mode": limit.limit_mode if limit else "both",
+        "daily_token_limit": limit.daily_token_limit if limit else None,
+        "daily_request_limit": limit.daily_request_limit if limit else None,
+    }
+
+@router.get("/users/{user_id}/sessions", response_model=List[AdminChatSessionView])
+def get_user_sessions(
+    user_id: str,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+
+    sessions = db.query(ChatSession).filter(ChatSession.user_id == user_id).order_by(ChatSession.updated_at.desc()).all()
+    
+    result = []
+    for s in sessions:
+        msg_count = db.query(ChatMessage).filter(ChatMessage.session_id == s.id).count()
+        result.append({
+            "id": s.id,
+            "user_id": s.user_id,
+            "title": s.title,
+            "created_at": s.created_at,
+            "updated_at": s.updated_at,
+            "message_count": msg_count
+        })
+    return result
+
+@router.get("/users/{user_id}/sessions/{session_id}/messages", response_model=List[AdminChatMessageView])
+def get_session_messages(
+    user_id: str,
+    session_id: str,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    session = db.query(ChatSession).filter(ChatSession.id == session_id, ChatSession.user_id == user_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="해당 대화 세션을 찾을 수 없습니다.")
+
+    messages = db.query(ChatMessage).filter(ChatMessage.session_id == session_id).order_by(ChatMessage.created_at.asc()).all()
+    return messages
+
+@router.put("/users/{user_id}/password")
+def reset_user_password(
+    user_id: str,
+    payload: AdminPasswordResetRequest,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+
+    target_user.hashed_password = get_password_hash(payload.new_password)
+    target_user.updated_at = datetime.utcnow()
+    db.commit()
+
+    return {"message": f"[{target_user.username}] 사용자의 비밀번호가 성공적으로 변경되었습니다."}
 
 @router.put("/users/{user_id}/limit", response_model=UserAdminView)
 def update_user_limit(
@@ -147,3 +248,4 @@ def toggle_user_activation(
     db.commit()
     db.refresh(target_user)
     return target_user
+
