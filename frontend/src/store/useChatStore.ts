@@ -77,9 +77,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         const restoredMessages = loadedMessages.map((m: ChatMessage) => {
           if (m.role === 'assistant' && typeof window !== 'undefined') {
             const savedTps = localStorage.getItem(`tps_${m.id}`);
-            if (savedTps) {
-              return { ...m, tps: parseInt(savedTps, 10) };
-            }
+            const savedThinkingType = localStorage.getItem(`thinking_type_${m.id}`);
+            return {
+              ...m,
+              tps: savedTps ? parseInt(savedTps, 10) : m.tps,
+              thinking_type: (savedThinkingType as 'Reasoning' | 'Thinking') || m.thinking_type
+            };
           }
           return m;
         });
@@ -294,6 +297,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       let buffer = '';
       let streamAssistantContent = '';
       let streamThinkingContent = '';
+      let streamThinkingType: 'Reasoning' | 'Thinking' | null = null;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -316,15 +320,21 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               tokenCount += data.delta.split(/\s+/).length || 1;
             } else if (data.type === 'thinking' || data.type === 'thinking_stream') {
               streamThinkingContent += data.delta;
+              if (data.source) {
+                streamThinkingType = data.source;
+              }
             } else if (data.type === 'message_id') {
               const elapsedSec = (performance.now() - startTime) / 1000;
               const currentTps = elapsedSec > 0 ? Math.round(tokenCount / elapsedSec) : 0;
               if (typeof window !== 'undefined') {
                 localStorage.setItem(`tps_${data.id}`, String(currentTps));
+                if (streamThinkingType) {
+                  localStorage.setItem(`thinking_type_${data.id}`, streamThinkingType);
+                }
               }
               set(state => ({
                 messages: state.messages.map(m =>
-                  m.id === assistantMsgTempId ? { ...m, id: data.id, tps: currentTps } : m
+                  m.id === assistantMsgTempId ? { ...m, id: data.id, tps: currentTps, thinking_type: streamThinkingType } : m
                 )
               }));
               continue;
@@ -341,6 +351,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                       ...m,
                       content: streamAssistantContent,
                       thinking_content: streamThinkingContent,
+                      thinking_type: streamThinkingType,
                       tps: currentTps
                     }
                   : m
@@ -489,6 +500,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       let buffer = '';
       let streamAssistantContent = '';
       let streamThinkingContent = '';
+      let streamThinkingType: 'Reasoning' | 'Thinking' | null = null;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -511,15 +523,21 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               tokenCount += data.delta.split(/\s+/).length || 1;
             } else if (data.type === 'thinking' || data.type === 'thinking_stream') {
               streamThinkingContent += data.delta;
+              if (data.source) {
+                streamThinkingType = data.source;
+              }
             } else if (data.type === 'message_id') {
               const elapsedSec = (performance.now() - startTime) / 1000;
               const currentTps = elapsedSec > 0 ? Math.round(tokenCount / elapsedSec) : 0;
               if (typeof window !== 'undefined') {
                 localStorage.setItem(`tps_${data.id}`, String(currentTps));
+                if (streamThinkingType) {
+                  localStorage.setItem(`thinking_type_${data.id}`, streamThinkingType);
+                }
               }
               set(state => ({
                 messages: state.messages.map(m =>
-                  m.id === assistantMsgTempId ? { ...m, id: data.id, tps: currentTps } : m
+                  m.id === assistantMsgTempId ? { ...m, id: data.id, tps: currentTps, thinking_type: streamThinkingType } : m
                 )
               }));
               continue;
@@ -536,6 +554,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                       ...m,
                       content: streamAssistantContent,
                       thinking_content: streamThinkingContent,
+                      thinking_type: streamThinkingType,
                       tps: currentTps
                     }
                   : m

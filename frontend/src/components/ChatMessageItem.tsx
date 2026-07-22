@@ -155,7 +155,9 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message }) => 
             {!isUser && message.thinking_content && (
               <ThinkingBlock
                 content={message.thinking_content}
+                thinkingType={message.thinking_type}
                 isStreaming={message.isStreaming}
+                hasAssistantContent={!!message.content && message.content.trim().length > 0}
               />
             )}
 

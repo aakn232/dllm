@@ -109,6 +109,40 @@ def merge_custom_instruction_prompt(
     return merged
 
 
+def apply_thinking_instruction(
+    messages: list[dict],
+    enable_thinking: bool,
+) -> list[dict]:
+    """
+    enable_thinking 값에 따라 시스템 프롬프트에 사고(Thinking) 기능 유도 지침을 주입합니다.
+    """
+    merged = deepcopy(messages)
+
+    if enable_thinking:
+        thinking_prompt = (
+            "[사고 모드 (Thinking Mode) 활성화]\n"
+            "당신은 사고 기능을 갖춘 AI입니다. 반드시 답변의 맨 처음에 <thinking> 태그로 시작하여 문제 해결을 위한 자세한 단계별 사고 과정(Thinking Process)을 작성하고, "
+            "</thinking> 태그로 닫은 후에 최종 답변을 작성해야 합니다."
+        )
+    else:
+        thinking_prompt = (
+            "[사고 모드 (Thinking Mode) 비활성화]\n"
+            "<thinking> 태그나 생각 과정 작성 없이 바로 사용자 질문에 대한 최종 답변만 작성하세요."
+        )
+
+    if merged and merged[0].get("role") == "system":
+        original = merged[0].get("content", "")
+        if isinstance(original, str):
+            merged[0] = {
+                **merged[0],
+                "content": f"{original}\n\n---\n\n{thinking_prompt}",
+            }
+    else:
+        merged.insert(0, {"role": "system", "content": thinking_prompt})
+
+    return merged
+
+
 async def stream_nvidia_response(
     response: httpx.Response,
     enable_thinking: bool,
@@ -195,11 +229,20 @@ async def stream_nvidia_response(
 
                 delta = choices[0].get("delta", {})
                 content_chunk = delta.get("content", "")
+                reasoning_chunk = delta.get("reasoning", "")
+
+                # 1. NVIDIA NIM reasoning 필드 스트리밍 처리
+                if reasoning_chunk:
+                    # <|channel>thought 등의 특수 토큰 정돈
+                    clean_reasoning = reasoning_chunk.replace("<|channel>thought", "").replace("<|channel>", "")
+                    if clean_reasoning:
+                        full_thinking_content += clean_reasoning
+                        yield f"data: {json.dumps({'type': 'thinking_stream', 'delta': clean_reasoning, 'source': 'Reasoning'})}\n\n"
 
                 if not content_chunk:
                     continue
 
-                # Thinking 태그 파싱 및 필터링 로직
+                # 2. Thinking 태그 파싱 및 필터링 로직 (기존 태그 방식 호환)
                 temp = content_chunk
                 
                 while temp:
@@ -223,7 +266,7 @@ async def stream_nvidia_response(
                             
                             # 빈 thinking 태그 버그 필터링: 내용이 있을 때만 프론트에 보냄
                             if thinking_buffer.strip():
-                                yield f"data: {json.dumps({'type': 'thinking', 'delta': thinking_buffer})}\n\n"
+                                yield f"data: {json.dumps({'type': 'thinking', 'delta': thinking_buffer, 'source': 'Thinking'})}\n\n"
                             
                             thinking_buffer = ""
                             in_thinking_tag = False
@@ -235,7 +278,7 @@ async def stream_nvidia_response(
                             # 실시간 thinking 스트리밍 (버퍼가 일정 이상 모였을 때)
                             if len(thinking_buffer) > 10:
                                 full_thinking_content += thinking_buffer
-                                yield f"data: {json.dumps({'type': 'thinking_stream', 'delta': thinking_buffer})}\n\n"
+                                yield f"data: {json.dumps({'type': 'thinking_stream', 'delta': thinking_buffer, 'source': 'Thinking'})}\n\n"
                                 thinking_buffer = ""
 
             except json.JSONDecodeError:
@@ -292,7 +335,10 @@ async def chat_completions(
     # 5. 맞춤 지침 프롬프트 안전 병합 (불변)
     valid_messages = merge_custom_instruction_prompt(valid_messages, instruction)
 
-    # 6. 컨텍스트 관리 (최근 MAX_CONTEXT_MESSAGES 개 메시지로 제한)
+    # 6. 사고 모드 지침 프롬프트 병합
+    valid_messages = apply_thinking_instruction(valid_messages, req.enable_thinking)
+
+    # 7. 컨텍스트 관리 (최근 MAX_CONTEXT_MESSAGES 개 메시지로 제한)
     if len(valid_messages) > MAX_CONTEXT_MESSAGES:
         system_msgs = [m for m in valid_messages if m.get("role") == "system"]
         other_msgs = [m for m in valid_messages if m.get("role") != "system"]
