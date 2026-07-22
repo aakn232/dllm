@@ -1,3 +1,10 @@
+import sys
+from pathlib import Path
+
+# Vercel 등 서벌리스 환경에서 backend 모듈을 찾을 수 있도록 루트 경로 추가
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+sys.path.append(str(Path(__file__).resolve().parent))
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.database import engine, Base
