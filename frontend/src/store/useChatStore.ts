@@ -218,27 +218,25 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       isGenerating: true
     }));
 
-    // 백엔드에 사용자 메시지 저장 및 서버 UUID 동기화
-    try {
-      const res = await authFetch(`${API_BASE}/sessions/${sessionId}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          role: 'user',
-          content,
-          attachments
-        })
-      });
+    // 백엔드에 사용자 메시지 비동기 배경 저장 및 서버 UUID 동기화 (await 차단 제거)
+    authFetch(`${API_BASE}/sessions/${sessionId}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        role: 'user',
+        content,
+        attachments
+      })
+    }).then(async (res) => {
       if (res.ok) {
         const savedMsg = await res.json();
         set(state => ({
           messages: state.messages.map(m => m.id === userMsgTempId ? { ...m, id: savedMsg.id } : m)
         }));
-        userMsg.id = savedMsg.id;
       }
-    } catch (e) {
+    }).catch(e => {
       console.error("Failed to persist user message:", e);
-    }
+    });
 
     const controller = new AbortController();
     set({ abortController: controller });
@@ -298,6 +296,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       let streamThinkingContent = '';
       let streamThinkingType: 'Reasoning' | 'Thinking' | null = null;
 
+      let lastRenderTime = 0;
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -339,28 +339,52 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               continue;
             }
 
-            const elapsedSec = (performance.now() - startTime) / 1000;
-            const currentTps = elapsedSec > 0 ? Math.round(tokenCount / elapsedSec) : 0;
+            const now = performance.now();
+            if (now - lastRenderTime > 40) {
+              lastRenderTime = now;
+              const elapsedSec = (now - startTime) / 1000;
+              const currentTps = elapsedSec > 0 ? Math.round(tokenCount / elapsedSec) : 0;
 
-            set(state => ({
-              tps: currentTps,
-              messages: state.messages.map(m =>
-                m.id === assistantMsgTempId
-                  ? {
-                      ...m,
-                      content: streamAssistantContent,
-                      thinking_content: streamThinkingContent,
-                      thinking_type: streamThinkingType,
-                      tps: currentTps
-                    }
-                  : m
-              )
-            }));
+              set(state => ({
+                tps: currentTps,
+                messages: state.messages.map(m =>
+                  m.id === assistantMsgTempId
+                    ? {
+                        ...m,
+                        content: streamAssistantContent,
+                        thinking_content: streamThinkingContent,
+                        thinking_type: streamThinkingType,
+                        tps: currentTps
+                      }
+                    : m
+                )
+              }));
+            }
           } catch (e) {
             console.error("Error parsing SSE JSON:", e);
           }
         }
       }
+
+      // 최종 1회 확정 상태 갱신
+      const elapsedSec = (performance.now() - startTime) / 1000;
+      const finalTps = elapsedSec > 0 ? Math.round(tokenCount / elapsedSec) : 0;
+      set(state => ({
+        tps: finalTps,
+        isGenerating: false,
+        messages: state.messages.map(m =>
+          m.id === assistantMsgTempId
+            ? {
+                ...m,
+                content: streamAssistantContent,
+                thinking_content: streamThinkingContent,
+                thinking_type: streamThinkingType,
+                tps: finalTps,
+                isStreaming: false
+              }
+            : m
+        )
+      }));
     } catch (err: any) {
       if (err.name !== 'AbortError') {
         console.error("Streaming error:", err);

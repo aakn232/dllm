@@ -7,7 +7,16 @@ engine_kwargs = {}
 if "sqlite" in DATABASE_URL:
     engine_kwargs["connect_args"] = {"check_same_thread": False}
 else:
+    engine_kwargs["pool_size"] = 20
+    engine_kwargs["max_overflow"] = 30
+    engine_kwargs["pool_recycle"] = 300
     engine_kwargs["pool_pre_ping"] = True
+    engine_kwargs["connect_args"] = {
+        "keepalives": 1,
+        "keepalives_idle": 30,
+        "keepalives_interval": 10,
+        "keepalives_count": 5
+    }
 
 engine = create_engine(DATABASE_URL, **engine_kwargs)
 

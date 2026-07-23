@@ -1,37 +1,27 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from backend.database import get_db
 from backend.models import ChatSession, ChatMessage, MessageAttachment, User
 from backend.schemas import (
-    SessionCreate, SessionUpdate, SessionResponse, 
+    SessionCreate, SessionUpdate, SessionResponse, SessionSummaryResponse,
     MessageCreate, MessageResponse
 )
 from backend.dependencies import get_current_user
 
 router = APIRouter(prefix="/api/v1/sessions", tags=["sessions"])
 
-@router.get("", response_model=List[SessionResponse])
+@router.get("", response_model=List[SessionSummaryResponse])
 def get_sessions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # 로그인한 사용자의 빈 세션(메시지가 없는 세션) 자동 정리 및 필터링
-    empty_sessions = db.query(ChatSession).filter(
-        ChatSession.user_id == current_user.id,
-        ~ChatSession.messages.any()
-    ).all()
-    for s in empty_sessions:
-        db.delete(s)
-    if empty_sessions:
-        db.commit()
-
     sessions = db.query(ChatSession).filter(
         ChatSession.user_id == current_user.id
     ).order_by(ChatSession.updated_at.desc()).all()
     return sessions
 
-@router.post("", response_model=SessionResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=SessionSummaryResponse, status_code=status.HTTP_201_CREATED)
 def create_session(
     req: SessionCreate,
     db: Session = Depends(get_db),
@@ -49,7 +39,9 @@ def get_session(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    session = db.query(ChatSession).filter(
+    session = db.query(ChatSession).options(
+        selectinload(ChatSession.messages).selectinload(ChatMessage.attachments)
+    ).filter(
         ChatSession.id == session_id,
         ChatSession.user_id == current_user.id
     ).first()
@@ -57,7 +49,7 @@ def get_session(
         raise HTTPException(status_code=404, detail="Session not found")
     return session
 
-@router.patch("/{session_id}", response_model=SessionResponse)
+@router.patch("/{session_id}", response_model=SessionSummaryResponse)
 def update_session(
     session_id: str,
     req: SessionUpdate,

@@ -65,10 +65,10 @@ class ChatSession(Base):
     __tablename__ = "chat_sessions"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
-    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
     title = Column(String(255), default="새 대화")
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, index=True)
 
     user = relationship("User", back_populates="sessions")
     messages = relationship("ChatMessage", back_populates="session", cascade="all, delete-orphan")
@@ -77,11 +77,11 @@ class ChatMessage(Base):
     __tablename__ = "chat_messages"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
-    session_id = Column(String(36), ForeignKey("chat_sessions.id", ondelete="CASCADE"), nullable=False)
+    session_id = Column(String(36), ForeignKey("chat_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
     role = Column(String(20), nullable=False)  # user, assistant, system
     content = Column(Text, nullable=False)
     thinking_content = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
     session = relationship("ChatSession", back_populates="messages")
     attachments = relationship("MessageAttachment", back_populates="message", cascade="all, delete-orphan")
@@ -90,7 +90,7 @@ class MessageAttachment(Base):
     __tablename__ = "message_attachments"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
-    message_id = Column(String(36), ForeignKey("chat_messages.id", ondelete="CASCADE"), nullable=False)
+    message_id = Column(String(36), ForeignKey("chat_messages.id", ondelete="CASCADE"), nullable=False, index=True)
     file_type = Column(String(50), nullable=False)  # e.g., image/jpeg, image/png
     file_url = Column(Text, nullable=False)  # Base64 string or file URL
     created_at = Column(DateTime, default=datetime.utcnow)

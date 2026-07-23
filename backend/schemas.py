@@ -41,6 +41,15 @@ class SessionResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class SessionSummaryResponse(BaseModel):
+    id: str
+    title: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
 class ChatCompletionRequest(BaseModel):
     session_id: Optional[str] = None
     messages: List[dict]
