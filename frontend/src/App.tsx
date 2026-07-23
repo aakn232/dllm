@@ -41,7 +41,9 @@ export const App: React.FC = () => {
     createSession,
     selectSession,
     darkMode,
-    goHome
+    goHome,
+    currentSessionId,
+    isLoadingSession
   } = useChatStore();
   const { fetchCustomInstructions } = useSettingsStore();
   const { isAuthenticated, isLoading, user, checkAuth } = useAuthStore();
@@ -189,7 +191,7 @@ export const App: React.FC = () => {
 
         {/* 메시지 리스트 스크롤 영역 */}
         <div className="flex-1 overflow-y-auto">
-          {messages.length === 0 ? (
+          {currentSessionId === null && messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center px-4 space-y-4">
               <div className="w-14 h-14 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-xl">
                 <Sparkles className="w-7 h-7" />
@@ -202,6 +204,11 @@ export const App: React.FC = () => {
                   NVIDIA NIM 기반 256토큰 병렬 디퓨전 모델과 텍스트 + 이미지 멀티모달 대화를 경험해보세요.
                 </p>
               </div>
+            </div>
+          ) : currentSessionId !== null && (isLoadingSession || messages.length === 0) ? (
+            <div className="h-full flex flex-col items-center justify-center text-center px-4 space-y-3">
+              <div className="w-8 h-8 border-3 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
+              <span className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>대화 내용을 불러오는 중...</span>
             </div>
           ) : (
             <div className="max-w-4xl mx-auto w-full py-4">

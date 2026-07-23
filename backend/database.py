@@ -10,7 +10,7 @@ else:
     engine_kwargs["pool_size"] = 20
     engine_kwargs["max_overflow"] = 30
     engine_kwargs["pool_recycle"] = 300
-    engine_kwargs["pool_pre_ping"] = True
+    engine_kwargs["pool_pre_ping"] = False
     engine_kwargs["connect_args"] = {
         "keepalives": 1,
         "keepalives_idle": 30,

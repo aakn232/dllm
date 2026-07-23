@@ -9,6 +9,7 @@ interface ChatStore {
   sessions: ChatSession[];
   currentSessionId: string | null;
   messages: ChatMessage[];
+  isLoadingSession: boolean;
   enableThinking: boolean;
   darkMode: boolean;
   isGenerating: boolean;
@@ -37,6 +38,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   sessions: [],
   currentSessionId: null,
   messages: [],
+  isLoadingSession: false,
   enableThinking: typeof window !== 'undefined' && localStorage.getItem('enableThinking') !== null
     ? localStorage.getItem('enableThinking') === 'true'
     : true,
@@ -47,7 +49,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   tps: 0,
   abortController: null,
 
-  goHome: () => set({ currentSessionId: null, messages: [] }),
+  goHome: () => set({ currentSessionId: null, messages: [], isLoadingSession: false }),
 
   fetchSessions: async () => {
     try {
@@ -62,15 +64,16 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   createSession: async () => {
-    set({ currentSessionId: null, messages: [] });
+    set({ currentSessionId: null, messages: [], isLoadingSession: false });
     return '';
   },
 
   selectSession: async (id: string) => {
-    set({ currentSessionId: id });
+    set({ currentSessionId: id, messages: [], isLoadingSession: true });
     try {
       const res = await authFetch(`${API_BASE}/sessions/${id}`);
       if (res.ok) {
+        if (get().currentSessionId !== id) return;
         const data = await res.json();
         const loadedMessages = data.messages || [];
         const restoredMessages = loadedMessages.map((m: ChatMessage) => {
@@ -85,10 +88,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           }
           return m;
         });
-        set({ messages: restoredMessages });
+        set({ messages: restoredMessages, isLoadingSession: false });
+      } else {
+        set({ isLoadingSession: false });
       }
     } catch (err) {
       console.error("Failed to load session messages:", err);
+      set({ isLoadingSession: false });
     }
   },
 
@@ -165,30 +171,28 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   sendMessage: async (content: string, attachments: Attachment[] = []) => {
     let sessionId = get().currentSessionId;
+    let isNewSession = false;
+    let tempSessionId = '';
+
     if (!sessionId) {
-      try {
-        const title = content.trim().slice(0, 30) || '새 대화';
-        const res = await authFetch(`${API_BASE}/sessions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title })
-        });
-        if (res.ok) {
-          const newSession = await res.json();
-          sessionId = newSession.id;
-          set(state => ({
-            sessions: [newSession, ...state.sessions],
-            currentSessionId: newSession.id
-          }));
-        }
-      } catch (err) {
-        console.error("Failed to create session on first message:", err);
-      }
+      isNewSession = true;
+      tempSessionId = 'temp-' + Date.now();
+      sessionId = tempSessionId;
+      const title = content.trim().slice(0, 30) || '새 대화';
+      const tempSession: ChatSession = {
+        id: tempSessionId,
+        title,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      set(state => ({
+        sessions: [tempSession, ...state.sessions],
+        currentSessionId: tempSessionId
+      }));
     }
-    if (!sessionId) return;
 
     // 1. 사용자 메시지 생성
-    let userMsgTempId = 'user-' + Date.now();
+    const userMsgTempId = 'user-' + Date.now();
     const userMsg: ChatMessage = {
       id: userMsgTempId,
       session_id: sessionId,
@@ -218,24 +222,51 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       isGenerating: true
     }));
 
-    // 백엔드에 사용자 메시지 비동기 배경 저장 및 서버 UUID 동기화 (await 차단 제거)
-    authFetch(`${API_BASE}/sessions/${sessionId}/messages`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        role: 'user',
-        content,
-        attachments
-      })
-    }).then(async (res) => {
-      if (res.ok) {
-        const savedMsg = await res.json();
-        set(state => ({
-          messages: state.messages.map(m => m.id === userMsgTempId ? { ...m, id: savedMsg.id } : m)
-        }));
-      }
-    }).catch(e => {
-      console.error("Failed to persist user message:", e);
+    let realSessionPromise: Promise<string> = Promise.resolve(sessionId);
+
+    if (isNewSession) {
+      const title = content.trim().slice(0, 30) || '새 대화';
+      realSessionPromise = authFetch(`${API_BASE}/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title })
+      }).then(async res => {
+        if (res.ok) {
+          const newSession = await res.json();
+          const realId = newSession.id;
+          set(state => ({
+            sessions: state.sessions.map(s => s.id === tempSessionId ? newSession : s),
+            currentSessionId: state.currentSessionId === tempSessionId ? realId : state.currentSessionId,
+            messages: state.messages.map(m => m.session_id === tempSessionId ? { ...m, session_id: realId } : m)
+          }));
+          return realId;
+        }
+        return tempSessionId;
+      }).catch(err => {
+        console.error("Failed to create real session on backend:", err);
+        return tempSessionId;
+      });
+    }
+
+    realSessionPromise.then(realSessionId => {
+      authFetch(`${API_BASE}/sessions/${realSessionId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: 'user',
+          content,
+          attachments
+        })
+      }).then(async (res) => {
+        if (res.ok) {
+          const savedMsg = await res.json();
+          set(state => ({
+            messages: state.messages.map(m => m.id === userMsgTempId ? { ...m, id: savedMsg.id } : m)
+          }));
+        }
+      }).catch(e => {
+        console.error("Failed to persist user message:", e);
+      });
     });
 
     const controller = new AbortController();

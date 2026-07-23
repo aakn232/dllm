@@ -1,6 +1,6 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, joinedload
 from backend.database import get_db
 from backend.models import ChatSession, ChatMessage, MessageAttachment, User
 from backend.schemas import (
@@ -40,13 +40,16 @@ def get_session(
     current_user: User = Depends(get_current_user)
 ):
     session = db.query(ChatSession).options(
-        selectinload(ChatSession.messages).selectinload(ChatMessage.attachments)
+        joinedload(ChatSession.messages).joinedload(ChatMessage.attachments)
     ).filter(
         ChatSession.id == session_id,
         ChatSession.user_id == current_user.id
     ).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+    
+    if session.messages:
+        session.messages.sort(key=lambda m: m.created_at)
     return session
 
 @router.patch("/{session_id}", response_model=SessionSummaryResponse)
