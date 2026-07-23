@@ -11,6 +11,9 @@ from backend.models import CustomInstruction, ChatSession, ChatMessage, MessageA
 from backend.routers.chat import merge_custom_instruction_prompt
 
 
+from backend.dependencies import get_current_user
+from backend.models import User
+
 # 인메모리 테스트용 DB 설정 (StaticPool 사용하여 세션 간 메모리 DB 유지)
 from sqlalchemy.pool import StaticPool
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -28,13 +31,27 @@ def override_get_db():
     finally:
         db.close()
 
+def override_get_current_user():
+    return User(id="test-user-id", username="testuser", email="test@example.com", hashed_password="pw", is_admin=False)
+
 app.dependency_overrides[get_db] = override_get_db
+app.dependency_overrides[get_current_user] = override_get_current_user
 client = TestClient(app)
 
 @pytest.fixture(autouse=True)
 def reset_db():
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = override_get_current_user
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
+    db = TestingSessionLocal()
+    u = User(id="test-user-id", username="testuser", email="test@example.com", hashed_password="pw", is_admin=False)
+    db.add(u)
+    db.commit()
+    db.close()
+
+
+
 
 
 # 1. GET 기본 레코드 생성 및 반환 검증
@@ -42,7 +59,8 @@ def test_get_custom_instructions_creates_default():
     response = client.get("/api/v1/custom-instructions")
     assert response.status_code == 200
     data = response.json()
-    assert data["id"] == 1
+    assert data["user_id"] == "test-user-id"
+
     assert data["user_profile"] == ""
     assert data["response_style"] == ""
     assert data["is_enabled"] is True
@@ -50,7 +68,8 @@ def test_get_custom_instructions_creates_default():
     # 2번째 GET도 동일 레코드 반환
     res2 = client.get("/api/v1/custom-instructions")
     assert res2.status_code == 200
-    assert res2.json()["id"] == 1
+    assert res2.json()["user_id"] == "test-user-id"
+
 
 # 2. PUT 필수 필드 누락 422 반환 검증
 def test_put_custom_instructions_missing_fields_422():
@@ -87,21 +106,22 @@ def test_put_idempotency_identical_payload():
 
 # 5. is_enabled=False 메시지 비변이 검증
 def test_merge_disabled_instruction():
-    inst = CustomInstruction(id=1, user_profile="개발자", response_style="스타일", is_enabled=False)
+    inst = CustomInstruction(user_id="test-user-id", user_profile="개발자", response_style="스타일", is_enabled=False)
     msgs = [{"role": "user", "content": "안녕"}]
     res = merge_custom_instruction_prompt(msgs, inst)
     assert res == msgs
 
 # 6. 공백 프롬프트 무시 검증
 def test_merge_whitespace_instruction():
-    inst = CustomInstruction(id=1, user_profile="   ", response_style="  \n ", is_enabled=True)
+    inst = CustomInstruction(user_id="test-user-id", user_profile="   ", response_style="  \n ", is_enabled=True)
     msgs = [{"role": "user", "content": "안녕"}]
     res = merge_custom_instruction_prompt(msgs, inst)
     assert res == msgs
 
 # 7. 딥카피 메모리 및 값 비변이 검증
 def test_merge_does_not_mutate_original():
-    inst = CustomInstruction(id=1, user_profile="개발자", response_style="간결히", is_enabled=True)
+    inst = CustomInstruction(user_id="test-user-id", user_profile="개발자", response_style="간결히", is_enabled=True)
+
     msgs = [{"role": "user", "content": "테스트"}]
     original_copy = [{"role": "user", "content": "테스트"}]
 
@@ -112,7 +132,7 @@ def test_merge_does_not_mutate_original():
 
 # 8. 기존 system 메시지 순서 병합 정합성 검증
 def test_merge_with_existing_system_message():
-    inst = CustomInstruction(id=1, user_profile="백엔드", response_style="코드 위주", is_enabled=True)
+    inst = CustomInstruction(user_id="test-user-id", user_profile="백엔드", response_style="코드 위주", is_enabled=True)
     msgs = [{"role": "system", "content": "기존 시스템 지침"}, {"role": "user", "content": "질문"}]
 
     res = merge_custom_instruction_prompt(msgs, inst)
@@ -124,7 +144,7 @@ def test_merge_with_existing_system_message():
 
 # 9. 신규 system 메시지 생성 병합 검증
 def test_merge_without_system_message():
-    inst = CustomInstruction(id=1, user_profile="학생", response_style="쉬운 설명", is_enabled=True)
+    inst = CustomInstruction(user_id="test-user-id", user_profile="학생", response_style="쉬운 설명", is_enabled=True)
     msgs = [{"role": "user", "content": "파이썬이란?"}]
 
     res = merge_custom_instruction_prompt(msgs, inst)

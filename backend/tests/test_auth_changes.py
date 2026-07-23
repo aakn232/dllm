@@ -6,7 +6,12 @@ from sqlalchemy.pool import StaticPool
 
 from backend.main import app
 from backend.database import Base, get_db
-from backend.models import User
+from backend.models import (
+    User, UserSettings, UsageLimit, UsageLog, ChatSession, ChatMessage, MessageAttachment, CustomInstruction
+)
+
+
+
 
 # 인메모리 테스트용 DB 설정
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -27,10 +32,25 @@ def override_get_db():
 app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
 
+
+from backend.dependencies import get_current_user
+
 @pytest.fixture(autouse=True)
 def reset_db():
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides.pop(get_current_user, None)
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
+
+
+
+
+
+
+
+
+
+
 
 def test_login_failure_generic_message():
     # 회원가입 진행

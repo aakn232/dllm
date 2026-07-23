@@ -104,7 +104,7 @@ async def get_system_status(db: Session = Depends(get_db)):
                 "port": 8000
             },
             "database": {
-                "name": "Database (SQLite/SQLAlchemy)",
+                "name": "Database (PostgreSQL / Supabase)",
                 "status": db_status,
                 "error": db_error,
                 "metrics": {

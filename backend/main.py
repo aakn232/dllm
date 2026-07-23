@@ -1,17 +1,13 @@
-import sys
-from pathlib import Path
-
-# Vercel 등 서벌리스 환경에서 backend 모듈을 찾을 수 있도록 루트 경로 추가
-sys.path.append(str(Path(__file__).resolve().parent.parent))
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.database import engine, Base
+from backend import models
 from backend.config import ENV, ALLOWED_ORIGINS
 from backend.routers import chat, sessions, status, custom_instructions, auth, settings, admin
 
 # DB 테이블 생성
 Base.metadata.create_all(bind=engine)
+
 
 app = FastAPI(
     title="NVIDIA DiffusionGemma AI Chatbot Backend",
