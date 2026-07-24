@@ -35,16 +35,13 @@ const ChatView: React.FC = () => {
 
 export const App: React.FC = () => {
   const navigate = useNavigate();
-  const {
-    fetchSessions,
-    messages,
-    createSession,
-    selectSession,
-    darkMode,
-    goHome,
-    currentSessionId,
-    isLoadingSession
-  } = useChatStore();
+  const fetchSessions = useChatStore(state => state.fetchSessions);
+  const messages = useChatStore(state => state.messages);
+  const createSession = useChatStore(state => state.createSession);
+  const darkMode = useChatStore(state => state.darkMode);
+  const goHome = useChatStore(state => state.goHome);
+  const currentSessionId = useChatStore(state => state.currentSessionId);
+  const isLoadingSession = useChatStore(state => state.isLoadingSession);
   const { fetchCustomInstructions } = useSettingsStore();
   const { isAuthenticated, isLoading, user, checkAuth } = useAuthStore();
 
@@ -62,20 +59,10 @@ export const App: React.FC = () => {
     checkAuth();
   }, []);
 
-  // 2. 인증 성공 시 세션 및 맞춤지침 패치 후 URL 경로 동기화
+  // 2. 인증 성공 시 세션 및 맞춤지침 병렬 패치 (URL 기반 세션 선택은 ChatView가 담당)
   useEffect(() => {
     if (isAuthenticated) {
-      fetchSessions().then(() => {
-        const path = window.location.pathname;
-        if (path.startsWith('/c/')) {
-          const sId = path.split('/c/')[1];
-          if (sId) {
-            selectSession(sId);
-          }
-        } else {
-          goHome();
-        }
-      });
+      fetchSessions();
       fetchCustomInstructions();
     }
   }, [isAuthenticated]);

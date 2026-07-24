@@ -15,6 +15,7 @@ interface ChatStore {
   isGenerating: boolean;
   tps: number;
   abortController: AbortController | null;
+  messageCache: Record<string, ChatMessage[]>;
 
   // Actions
   fetchSessions: () => Promise<void>;
@@ -48,6 +49,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   isGenerating: false,
   tps: 0,
   abortController: null,
+  messageCache: {},
 
   goHome: () => set({ currentSessionId: null, messages: [], isLoadingSession: false }),
 
@@ -69,7 +71,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   selectSession: async (id: string) => {
-    set({ currentSessionId: id, messages: [], isLoadingSession: true });
+    const cached = get().messageCache[id];
+    if (cached && cached.length > 0) {
+      // 캐시 있으면 즉시 표시 (로딩 스피너 없이)
+      set({ currentSessionId: id, messages: cached, isLoadingSession: false });
+    } else {
+      set({ currentSessionId: id, messages: [], isLoadingSession: true });
+    }
     try {
       const res = await authFetch(`${API_BASE}/sessions/${id}`);
       if (res.ok) {
@@ -88,7 +96,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           }
           return m;
         });
-        set({ messages: restoredMessages, isLoadingSession: false });
+        set(state => ({
+          messages: restoredMessages,
+          isLoadingSession: false,
+          messageCache: { ...state.messageCache, [id]: restoredMessages }
+        }));
       } else {
         set({ isLoadingSession: false });
       }
@@ -122,10 +134,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         set(state => {
           const filtered = state.sessions.filter(s => s.id !== id);
           const nextSessionId = filtered.length > 0 ? filtered[0].id : null;
+          const { [id]: _, ...restCache } = state.messageCache;
           return {
             sessions: filtered,
             currentSessionId: nextSessionId,
-            messages: nextSessionId ? state.messages : []
+            messages: nextSessionId ? state.messages : [],
+            messageCache: restCache
           };
         });
         if (get().currentSessionId) {
@@ -400,10 +414,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       // 최종 1회 확정 상태 갱신
       const elapsedSec = (performance.now() - startTime) / 1000;
       const finalTps = elapsedSec > 0 ? Math.round(tokenCount / elapsedSec) : 0;
-      set(state => ({
-        tps: finalTps,
-        isGenerating: false,
-        messages: state.messages.map(m =>
+      set(state => {
+        const updatedMessages = state.messages.map(m =>
           m.id === assistantMsgTempId
             ? {
                 ...m,
@@ -414,8 +426,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                 isStreaming: false
               }
             : m
-        )
-      }));
+        );
+        const sid = state.currentSessionId;
+        return {
+          tps: finalTps,
+          isGenerating: false,
+          messages: updatedMessages,
+          messageCache: sid ? { ...state.messageCache, [sid]: updatedMessages } : state.messageCache
+        };
+      });
     } catch (err: any) {
       if (err.name !== 'AbortError') {
         console.error("Streaming error:", err);

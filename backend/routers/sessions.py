@@ -1,6 +1,6 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, selectinload
 from backend.database import get_db
 from backend.models import ChatSession, ChatMessage, MessageAttachment, User
 from backend.schemas import (
@@ -40,7 +40,7 @@ def get_session(
     current_user: User = Depends(get_current_user)
 ):
     session = db.query(ChatSession).options(
-        joinedload(ChatSession.messages).joinedload(ChatMessage.attachments)
+        selectinload(ChatSession.messages).selectinload(ChatMessage.attachments)
     ).filter(
         ChatSession.id == session_id,
         ChatSession.user_id == current_user.id

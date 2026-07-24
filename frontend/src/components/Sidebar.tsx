@@ -51,17 +51,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       onClose();
     }
   };
-  const {
-    sessions,
-    currentSessionId,
-    createSession,
-    selectSession,
-    updateSessionTitle,
-    deleteSession,
-    goHome,
-    darkMode,
-    toggleDarkMode
-  } = useChatStore();
+  const sessions = useChatStore(state => state.sessions);
+  const currentSessionId = useChatStore(state => state.currentSessionId);
+  const createSession = useChatStore(state => state.createSession);
+  const updateSessionTitle = useChatStore(state => state.updateSessionTitle);
+  const deleteSession = useChatStore(state => state.deleteSession);
+  const goHome = useChatStore(state => state.goHome);
+  const darkMode = useChatStore(state => state.darkMode);
+  const toggleDarkMode = useChatStore(state => state.toggleDarkMode);
   const { openModal: openCustomInstructionsModal } = useSettingsStore();
   const { user, logout } = useAuthStore();
 
@@ -219,7 +216,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 return (
                   <div
                     key={session.id}
-                    onClick={() => { selectSession(session.id); navigate(`/c/${session.id}`); handleMobileClose(); }}
+                    onClick={() => { navigate(`/c/${session.id}`); handleMobileClose(); }}
                     className={`
                       group flex items-center justify-between px-2.5 py-2 rounded-xl text-xs cursor-pointer transition-colors
                       ${isSelected
