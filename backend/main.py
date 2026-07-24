@@ -1,12 +1,20 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.config import ENV, ALLOWED_ORIGINS
 from backend.routers import chat, sessions, status, custom_instructions, auth, settings, admin
+from backend.http_client import close_async_client
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+    await close_async_client()
 
 app = FastAPI(
     title="NVIDIA DiffusionGemma AI Chatbot Backend",
     description="Backend Proxy & Status Monitoring Dashboard for Google DiffusionGemma 26B A4B IT",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # CORS 설정 — 대괄호/공백/와일드카드 안전 처리

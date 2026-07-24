@@ -10,6 +10,9 @@ import { StatusDashboard } from './components/StatusDashboard';
 import { CustomInstructionsModal } from './components/CustomInstructionsModal';
 import { ProfileModal } from './components/ProfileModal';
 import { PasswordChangeModal } from './components/PasswordChangeModal';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { ErrorBuggyComponent } from './components/ErrorBuggyComponent';
+import { ChatMessageSkeleton } from './components/skeletons/ChatMessageSkeleton';
 import { LoginPage } from './pages/LoginPage';
 import { AdminPage } from './pages/AdminPage';
 import { Menu, Sparkles, Plus } from 'lucide-react';
@@ -99,6 +102,19 @@ export const App: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // E2E / 렌더링 에러 테스트용 경로 핸들러
+  if (typeof window !== 'undefined' && (window.location.pathname === '/test-error' || window.location.search.includes('test_error=true'))) {
+    return (
+      <div className={`min-h-screen w-screen flex items-center justify-center p-6 ${darkMode ? 'bg-black text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
+        <div className="w-full max-w-2xl">
+          <ErrorBoundary fallbackTitle="컴포넌트를 불러오는 중 오류가 발생했습니다.">
+            <ErrorBuggyComponent />
+          </ErrorBoundary>
+        </div>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className={`h-screen w-screen flex items-center justify-center font-sans ${
@@ -121,109 +137,112 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className={`flex h-screen w-screen overflow-hidden font-sans transition-colors duration-200 ${
-      darkMode ? 'bg-black text-slate-100' : 'bg-slate-50 text-slate-900'
-    }`}>
-      <Routes>
-        <Route path="/" element={<ChatView />} />
-        <Route path="/c/:sessionId" element={<ChatView />} />
-      </Routes>
+    <ErrorBoundary fallbackTitle="애플리케이션 실행 중 오류가 발생했습니다.">
+      <div className={`flex h-screen w-screen overflow-hidden font-sans transition-colors duration-200 ${
+        darkMode ? 'bg-black text-slate-100' : 'bg-slate-50 text-slate-900'
+      }`}>
+        <Routes>
+          <Route path="/" element={<ChatView />} />
+          <Route path="/c/:sessionId" element={<ChatView />} />
+          <Route path="/test-error" element={<ErrorBuggyComponent />} />
+        </Routes>
 
-      {/* 사이드바 */}
-      <Sidebar
-        isOpen={sidebarOpen}
-        onToggle={() => setSidebarOpen(!sidebarOpen)}
-        onClose={() => setSidebarOpen(false)}
-        onOpenStatus={() => { setStatusOpen(true); setSidebarOpen(false); }}
-        onOpenAdmin={() => { setIsAdminView(true); setIsProfileView(false); setIsPasswordView(false); setSidebarOpen(false); }}
-        onOpenProfile={() => { setIsProfileView(true); setIsPasswordView(false); setSidebarOpen(false); }}
-        onOpenPassword={() => { setIsPasswordView(true); setIsProfileView(false); setSidebarOpen(false); }}
-      />
+        {/* 사이드바 */}
+        <Sidebar
+          isOpen={sidebarOpen}
+          onToggle={() => setSidebarOpen(!sidebarOpen)}
+          onClose={() => setSidebarOpen(false)}
+          onOpenStatus={() => { setStatusOpen(true); setSidebarOpen(false); }}
+          onOpenAdmin={() => { setIsAdminView(true); setIsProfileView(false); setIsPasswordView(false); setSidebarOpen(false); }}
+          onOpenProfile={() => { setIsProfileView(true); setIsPasswordView(false); setSidebarOpen(false); }}
+          onOpenPassword={() => { setIsPasswordView(true); setIsProfileView(false); setSidebarOpen(false); }}
+        />
 
-      {/* 메인 영역 */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden relative">
-        {/* 모바일 전용 상단 헤더 바 */}
-        <header className={`md:hidden flex items-center justify-between px-3.5 py-2.5 border-b backdrop-blur-md z-20 transition-colors ${
-          darkMode ? 'border-neutral-800 bg-neutral-900/90 text-slate-100' : 'border-slate-200 bg-white/90 text-slate-800 shadow-sm'
-        }`}>
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className={`p-2 rounded-lg border transition-colors cursor-pointer ${
-              darkMode ? 'border-neutral-700 bg-neutral-800 text-slate-300 hover:text-white' : 'border-slate-300 bg-slate-100 text-slate-700 hover:text-black'
-            }`}
-            title={sidebarOpen ? "사이드바 닫기" : "사이드바 열기"}
-          >
-            <Menu className="w-5 h-5" />
-          </button>
+        {/* 메인 영역 */}
+        <main className="flex-1 flex flex-col h-full overflow-hidden relative">
+          {/* 모바일 전용 상단 헤더 바 */}
+          <header className={`md:hidden flex items-center justify-between px-3.5 py-2.5 border-b backdrop-blur-md z-20 transition-colors ${
+            darkMode ? 'border-neutral-800 bg-neutral-900/90 text-slate-100' : 'border-slate-200 bg-white/90 text-slate-800 shadow-sm'
+          }`}>
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className={`p-2 rounded-lg border transition-colors cursor-pointer ${
+                darkMode ? 'border-neutral-700 bg-neutral-800 text-slate-300 hover:text-white' : 'border-slate-300 bg-slate-100 text-slate-700 hover:text-black'
+              }`}
+              title={sidebarOpen ? "사이드바 닫기" : "사이드바 열기"}
+            >
+              <Menu className="w-5 h-5" />
+            </button>
 
-          <button
-            onClick={() => { goHome(); navigate('/'); setSidebarOpen(false); }}
-            className="flex items-center gap-2 font-semibold text-sm cursor-pointer hover:opacity-85"
-            title="홈으로 이동"
-          >
-            <span className="w-2 h-2 rounded-full bg-indigo-500 flex-shrink-0 animate-pulse" />
-            <span className="truncate max-w-[160px] xs:max-w-[200px]">Diffusion Gemma</span>
-          </button>
+            <button
+              onClick={() => { goHome(); navigate('/'); setSidebarOpen(false); }}
+              className="flex items-center gap-2 font-semibold text-sm cursor-pointer hover:opacity-85"
+              title="홈으로 이동"
+            >
+              <span className="w-2 h-2 rounded-full bg-indigo-500 flex-shrink-0 animate-pulse" />
+              <span className="truncate max-w-[160px] xs:max-w-[200px]">Diffusion Gemma</span>
+            </button>
 
-          <button
-            onClick={() => { createSession(); navigate('/'); setSidebarOpen(false); }}
-            className={`p-2 rounded-lg border transition-colors cursor-pointer ${
-              darkMode ? 'border-neutral-700 bg-neutral-800 text-indigo-400' : 'border-slate-300 bg-slate-100 text-indigo-600'
-            }`}
-            title="새 채팅 시작"
-          >
-            <Plus className="w-5 h-5" />
-          </button>
-        </header>
+            <button
+              onClick={() => { createSession(); navigate('/'); setSidebarOpen(false); }}
+              className={`p-2 rounded-lg border transition-colors cursor-pointer ${
+                darkMode ? 'border-neutral-700 bg-neutral-800 text-indigo-400' : 'border-slate-300 bg-slate-100 text-indigo-600'
+              }`}
+              title="새 채팅 시작"
+            >
+              <Plus className="w-5 h-5" />
+            </button>
+          </header>
 
-        {/* 메시지 리스트 스크롤 영역 */}
-        <div className="flex-1 overflow-y-auto">
-          {currentSessionId === null && messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center px-4 space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-xl">
-                <Sparkles className="w-7 h-7" />
-              </div>
-              <div className="space-y-1">
-                <h3 className={`text-xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>
-                  Diffusion Gemma AI에 무엇이든 물어보세요
-                </h3>
-                <p className={`text-xs max-w-md ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                  NVIDIA NIM 기반 256토큰 병렬 디퓨전 모델과 텍스트 + 이미지 멀티모달 대화를 경험해보세요.
-                </p>
-              </div>
-            </div>
-          ) : currentSessionId !== null && (isLoadingSession || messages.length === 0) ? (
-            <div className="h-full flex flex-col items-center justify-center text-center px-4 space-y-3">
-              <div className="w-8 h-8 border-3 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
-              <span className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>대화 내용을 불러오는 중...</span>
-            </div>
-          ) : (
-            <div className="max-w-4xl mx-auto w-full py-4">
-              {messages.map((msg) => (
-                <ChatMessageItem key={msg.id} message={msg} />
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-          )}
-        </div>
+          {/* 메시지 리스트 스크롤 영역 */}
+          <div className="flex-1 overflow-y-auto">
+            <ErrorBoundary fallbackTitle="대화 메시지 표시 중 오류가 발생했습니다.">
+              {currentSessionId === null && messages.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center px-4 space-y-4">
+                  <div className="w-14 h-14 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-xl">
+                    <Sparkles className="w-7 h-7" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className={`text-xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>
+                      Diffusion Gemma AI에 무엇이든 물어보세요
+                    </h3>
+                    <p className={`text-xs max-w-md ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                      NVIDIA NIM 기반 256토큰 병렬 디퓨전 모델과 텍스트 + 이미지 멀티모달 대화를 경험해보세요.
+                    </p>
+                  </div>
+                </div>
+              ) : currentSessionId !== null && (isLoadingSession || messages.length === 0) ? (
+                <ChatMessageSkeleton />
+              ) : (
+                <div className="max-w-4xl mx-auto w-full py-4">
+                  {messages.map((msg) => (
+                    <ChatMessageItem key={msg.id} message={msg} />
+                  ))}
+                  <div ref={messagesEndRef} />
+                </div>
+              )}
+            </ErrorBoundary>
+          </div>
 
-        {/* 하단 입력 영역 */}
-        <ChatInput />
-      </main>
+          {/* 하단 입력 영역 */}
+          <ChatInput />
+        </main>
 
-      {/* 백엔드 상태 점검 대시보드 모달 */}
-      <StatusDashboard isOpen={statusOpen} onClose={() => setStatusOpen(false)} />
+        {/* 백엔드 상태 점검 대시보드 모달 */}
+        <StatusDashboard isOpen={statusOpen} onClose={() => setStatusOpen(false)} />
 
-      {/* 맞춤 지침 설정 모달 */}
-      <CustomInstructionsModal />
+        {/* 맞춤 지침 설정 모달 */}
+        <CustomInstructionsModal />
 
-      {/* 프로필 정보 모달 (비밀번호 항목 제거된 정보 전용 모달) */}
-      <ProfileModal isOpen={isProfileView} onClose={() => setIsProfileView(false)} />
+        {/* 프로필 정보 모달 (비밀번호 항목 제거된 정보 전용 모달) */}
+        <ProfileModal isOpen={isProfileView} onClose={() => setIsProfileView(false)} />
 
-      {/* 비밀번호 변경 모달 */}
-      <PasswordChangeModal isOpen={isPasswordView} onClose={() => setIsPasswordView(false)} />
-    </div>
+        {/* 비밀번호 변경 모달 */}
+        <PasswordChangeModal isOpen={isPasswordView} onClose={() => setIsPasswordView(false)} />
+      </div>
+    </ErrorBoundary>
   );
 };
 
 export default App;
+

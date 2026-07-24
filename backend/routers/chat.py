@@ -9,15 +9,76 @@ import httpx
 
 from copy import deepcopy
 from backend.config import NVIDIA_API_KEY, NVIDIA_API_URL, MODEL_NAME
-from backend.database import get_db
+from backend.database import get_db, SessionLocal
 from backend.models import ChatSession, ChatMessage, MessageAttachment, CustomInstruction, User, UsageLimit, UsageLog
 from backend.schemas import ChatCompletionRequest
 from backend.dependencies import get_current_user
+from backend.http_client import get_async_client
 
 router = APIRouter(prefix="/api/v1", tags=["chat"])
 logger = logging.getLogger("chat_proxy")
 
 MAX_CONTEXT_MESSAGES = 20  # 컨텍스트 관리: 최근 20개 메시지 유지 (슬라이딩 윈도우)
+
+def save_chat_completion_result(
+    session_id: str | None,
+    user_id: str | None,
+    full_assistant_content: str,
+    full_thinking_content: str,
+    actual_tokens: int
+) -> str | None:
+    """
+    스트리밍 종료 후 메시지 저장 및 사용량 기록을 짧은 독립 세션으로 처리 (Early Release Pattern)
+    """
+    msg_id = None
+    if not (session_id or user_id):
+        return None
+
+    db = SessionLocal()
+    try:
+        if session_id and full_assistant_content.strip():
+            clean_thinking = full_thinking_content.strip() if full_thinking_content.strip() else None
+            msg = ChatMessage(
+                session_id=session_id,
+                role="assistant",
+                content=full_assistant_content,
+                thinking_content=clean_thinking
+            )
+            db.add(msg)
+            db.commit()
+            db.refresh(msg)
+            msg_id = msg.id
+
+        if user_id:
+            today = date.today()
+            approx_tokens = max(1, len(full_assistant_content) // 4)
+            token_increment = actual_tokens if actual_tokens > 0 else approx_tokens
+
+            log_rec = db.query(UsageLog).filter(
+                UsageLog.user_id == user_id,
+                UsageLog.date == today
+            ).first()
+
+            if log_rec:
+                log_rec.token_count += token_increment
+                log_rec.request_count += 1
+            else:
+                log_rec = UsageLog(
+                    user_id=user_id,
+                    date=today,
+                    token_count=token_increment,
+                    request_count=1
+                )
+                db.add(log_rec)
+            db.commit()
+    except Exception as ex:
+        logger.error(f"Failed to save completion result or usage: {ex}")
+        db.rollback()
+    finally:
+        db.close()
+
+    return msg_id
+
 
 def check_and_enforce_limit(user: User, db: Session):
     today = date.today()
@@ -168,50 +229,16 @@ async def stream_nvidia_response(
 
             data_str = line[6:].strip()
             if data_str == "[DONE]":
-                # 최종 응답 DB에 저장 (session_id가 있는 경우 및 content가 존재하는 경우만)
-                if session_id and db and full_assistant_content.strip():
-                    try:
-                        clean_thinking = full_thinking_content.strip() if full_thinking_content.strip() else None
-                        msg = ChatMessage(
-                            session_id=session_id,
-                            role="assistant",
-                            content=full_assistant_content,
-                            thinking_content=clean_thinking
-                        )
-                        db.add(msg)
-                        db.commit()
-                        db.refresh(msg)
-                        yield f"data: {json.dumps({'type': 'message_id', 'id': msg.id})}\n\n"
-                    except Exception as e:
-                        logger.error(f"Failed to save assistant message: {e}")
-                
-                # 사용량 누적 기록
-                if user_id and db:
-                    try:
-                        today = date.today()
-                        approx_tokens = max(1, len(full_assistant_content) // 4)
-                        token_increment = actual_tokens if actual_tokens > 0 else approx_tokens
-                        
-                        log_rec = db.query(UsageLog).filter(
-                            UsageLog.user_id == user_id,
-                            UsageLog.date == today
-                        ).first()
-                        
-                        if log_rec:
-                            log_rec.token_count += token_increment
-                            log_rec.request_count += 1
-                        else:
-                            log_rec = UsageLog(
-                                user_id=user_id,
-                                date=today,
-                                token_count=token_increment,
-                                request_count=1
-                            )
-                            db.add(log_rec)
-                        db.commit()
-                    except Exception as ex:
-                        logger.error(f"Failed to log usage: {ex}")
-                        db.rollback()
+                # 최종 응답 DB 저장 및 사용량 누적 기록 (Early Release Pattern 적용)
+                msg_id = save_chat_completion_result(
+                    session_id=session_id,
+                    user_id=user_id,
+                    full_assistant_content=full_assistant_content,
+                    full_thinking_content=full_thinking_content,
+                    actual_tokens=actual_tokens
+                )
+                if msg_id:
+                    yield f"data: {json.dumps({'type': 'message_id', 'id': msg_id})}\n\n"
 
                 yield "data: [DONE]\n\n"
                 break
@@ -309,6 +336,7 @@ async def chat_completions(
             ChatSession.user_id == current_user.id
         ).first()
         if not session:
+            db.close()
             raise HTTPException(status_code=404, detail="세션을 찾을 수 없거나 접근 권한이 없습니다.")
 
     # 3. 맞춤지침 가져오기 (user_id 기준)
@@ -316,6 +344,9 @@ async def chat_completions(
         CustomInstruction.user_id == current_user.id,
         CustomInstruction.is_enabled.is_(True)
     ).first()
+
+    # Early DB Release Pattern: 파라미터 및 세션 검증이 모두 끝난 후 스트리밍 시작 전 DB 연결 즉시 반납
+    db.close()
 
     # 4. 메시지 유효성 검사 및 빈 assistant 메시지 제거 (NVIDIA BadRequestError 방지)
     valid_messages = []
@@ -362,7 +393,7 @@ async def chat_completions(
         "Accept": "text/event-stream"
     }
 
-    client = httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=15.0))
+    client = get_async_client()
     try:
         nvidia_req = client.build_request("POST", NVIDIA_API_URL, headers=headers, json=payload)
         response = await client.send(nvidia_req, stream=True)
@@ -378,6 +409,7 @@ async def chat_completions(
         )
 
     return StreamingResponse(
-        stream_nvidia_response(response, req.enable_thinking, req.session_id, db, current_user.id),
+        stream_nvidia_response(response, req.enable_thinking, req.session_id, user_id=current_user.id),
         media_type="text/event-stream"
     )
+

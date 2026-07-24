@@ -1,28 +1,54 @@
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
 from backend.main import app
-from backend.database import get_db, Base, engine
+from backend.database import get_db, Base
 from backend.models import User
 from backend.dependencies import get_current_user
+
+SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool
+)
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+def override_get_db():
+    db = TestingSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 client = TestClient(app)
 TEST_USER_ID = "test-user-id-opt"
 
+def mock_get_current_user():
+    return User(id=TEST_USER_ID, username="optuser", email="opt@example.com", hashed_password="pw")
+
 @pytest.fixture(autouse=True)
 def setup_db():
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = mock_get_current_user
+    Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
-    db = next(get_db())
+
+    db = TestingSessionLocal()
     user = db.query(User).filter(User.id == TEST_USER_ID).first()
     if not user:
         user = User(id=TEST_USER_ID, username="optuser", email="opt@example.com", hashed_password="pw")
         db.add(user)
         db.commit()
+    db.close()
+
     yield
 
-def mock_get_current_user():
-    return User(id=TEST_USER_ID, username="optuser", email="opt@example.com", hashed_password="pw")
-
-app.dependency_overrides[get_current_user] = mock_get_current_user
+    app.dependency_overrides.pop(get_current_user, None)
+    app.dependency_overrides.pop(get_db, None)
 
 def test_session_summary_and_detail_flow():
     # 1. API를 통해 세션 생성
