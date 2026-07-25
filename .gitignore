@@ -30,3 +30,9 @@ htmlcov/
 node_modules/
 dist/
 .next/
+
+# Tool metadata & Local backups
+.ua/
+*.sql
+db_backup.json
+
