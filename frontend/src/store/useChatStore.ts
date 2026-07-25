@@ -311,12 +311,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     let tokenCount = 0;
 
     try {
+      const resolvedSessionId = await realSessionPromise;
       const response = await authFetch(`${API_BASE}/chat/completions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
         body: JSON.stringify({
-          session_id: sessionId,
+          session_id: resolvedSessionId,
           messages: formattedMessages,
           enable_thinking: get().enableThinking
         })
