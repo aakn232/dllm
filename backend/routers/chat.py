@@ -4,6 +4,7 @@ from datetime import date
 from typing import AsyncGenerator
 from fastapi import APIRouter, Request, HTTPException, Depends
 from fastapi.responses import StreamingResponse
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 import httpx
 
@@ -230,12 +231,13 @@ async def stream_nvidia_response(
             data_str = line[6:].strip()
             if data_str == "[DONE]":
                 # 최종 응답 DB 저장 및 사용량 누적 기록 (Early Release Pattern 적용)
-                msg_id = save_chat_completion_result(
-                    session_id=session_id,
-                    user_id=user_id,
-                    full_assistant_content=full_assistant_content,
-                    full_thinking_content=full_thinking_content,
-                    actual_tokens=actual_tokens
+                msg_id = await run_in_threadpool(
+                    save_chat_completion_result,
+                    session_id,  # session_id (positional or keyword is fine, but run_in_threadpool takes *args and **kwargs)
+                    user_id,
+                    full_assistant_content,
+                    full_thinking_content,
+                    actual_tokens
                 )
                 if msg_id:
                     yield f"data: {json.dumps({'type': 'message_id', 'id': msg_id})}\n\n"
@@ -327,23 +329,27 @@ async def chat_completions(
         logger.warning("NVIDIA_API_KEY is not set in environment.")
 
     # 1. 일일 한도 체크
-    check_and_enforce_limit(current_user, db)
+    await run_in_threadpool(check_and_enforce_limit, current_user, db)
 
     # 2. 세션 유효성 검사 (세션 소유주 여부 확인)
     if req.session_id:
-        session = db.query(ChatSession).filter(
-            ChatSession.id == req.session_id,
-            ChatSession.user_id == current_user.id
-        ).first()
+        def _get_session():
+            return db.query(ChatSession).filter(
+                ChatSession.id == req.session_id,
+                ChatSession.user_id == current_user.id
+            ).first()
+        session = await run_in_threadpool(_get_session)
         if not session:
             db.close()
             raise HTTPException(status_code=404, detail="세션을 찾을 수 없거나 접근 권한이 없습니다.")
 
     # 3. 맞춤지침 가져오기 (user_id 기준)
-    instruction = db.query(CustomInstruction).filter(
-        CustomInstruction.user_id == current_user.id,
-        CustomInstruction.is_enabled.is_(True)
-    ).first()
+    def _get_instruction():
+        return db.query(CustomInstruction).filter(
+            CustomInstruction.user_id == current_user.id,
+            CustomInstruction.is_enabled.is_(True)
+        ).first()
+    instruction = await run_in_threadpool(_get_instruction)
 
     # Early DB Release Pattern: 파라미터 및 세션 검증이 모두 끝난 후 스트리밍 시작 전 DB 연결 즉시 반납
     db.close()
