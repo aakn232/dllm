@@ -145,6 +145,34 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 def get_me(current_user: User = Depends(get_current_user)):
     return current_user
 
+@router.delete("/me", status_code=status.HTTP_200_OK)
+def delete_account(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    현재 로그인된 사용자의 계정을 영구 삭제합니다.
+    관련 데이터(설정, 사용량 제한, 맞춤 지침)는 cascade 삭제됩니다.
+    관리자 계정은 탈퇴할 수 없습니다.
+    """
+    if current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="관리자 계정은 탈퇴할 수 없습니다. 먼저 다른 관리자에게 권한을 이전해주세요."
+        )
+
+    try:
+        db.delete(current_user)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"계정 삭제 처리 중 오류가 발생했습니다: {str(e)}"
+        )
+
+    return {"message": "계정이 성공적으로 삭제되었습니다."}
+
 @router.post("/change-password")
 def change_password(
     payload: PasswordChangeRequest,
@@ -180,5 +208,3 @@ def check_username(username: str, db: Session = Depends(get_db)):
         "is_available": True,
         "message": "사용 가능한 아이디입니다."
     }
-
-
