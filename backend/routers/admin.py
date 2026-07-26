@@ -262,6 +262,41 @@ def toggle_user_activation(
     db.refresh(target_user)
     return target_user
 
+@router.delete("/users/{user_id}")
+def delete_user(
+    user_id: str,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """사용자 및 관련 데이터를 모두 삭제합니다. 관리자 본인 또는 다른 관리자 계정은 삭제할 수 없습니다."""
+    # 자기 자신 삭제 방지
+    if user_id == current_admin.id:
+        raise HTTPException(status_code=400, detail="자기 자신의 계정은 삭제할 수 없습니다.")
+
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+
+    # 다른 관리자 계정 삭제 방지
+    if target_user.is_admin:
+        raise HTTPException(status_code=403, detail="관리자 계정은 삭제할 수 없습니다.")
+
+    username = target_user.username
+
+    # 연관 데이터 순서대로 삭제 (ChatMessage → ChatSession → UsageLog → UsageLimit → CustomInstruction → UserSettings → User)
+    sessions = db.query(ChatSession).filter(ChatSession.user_id == user_id).all()
+    for session in sessions:
+        db.query(ChatMessage).filter(ChatMessage.session_id == session.id).delete()
+    db.query(ChatSession).filter(ChatSession.user_id == user_id).delete()
+    db.query(UsageLog).filter(UsageLog.user_id == user_id).delete()
+    db.query(UsageLimit).filter(UsageLimit.user_id == user_id).delete()
+    db.query(CustomInstruction).filter(CustomInstruction.user_id == user_id).delete()
+    db.query(UserSettings).filter(UserSettings.user_id == user_id).delete()
+    db.delete(target_user)
+    db.commit()
+
+    return {"message": f"[{username}] 사용자 및 관련 데이터가 성공적으로 삭제되었습니다."}
+
 @router.get("/system-settings", response_model=SystemSettingsSchema)
 def get_system_settings(
     current_admin: User = Depends(get_current_admin),
@@ -293,4 +328,3 @@ def update_system_settings(
     db.commit()
     db.refresh(settings)
     return settings
-
