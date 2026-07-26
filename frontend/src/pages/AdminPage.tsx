@@ -7,7 +7,7 @@ import {
   ShieldAlert, CheckCircle, XCircle, Settings, UserX, 
   UserCheck, RefreshCw, Sliders, X, ArrowLeft,
   MessageSquare, Key, FileText,
-  User, Lock, Cpu, Check, Copy, Gauge
+  User, Lock, Cpu, Check, Copy, Gauge, Trash2
 } from 'lucide-react';
 import { ThinkingBlock } from '../components/ThinkingBlock';
 
@@ -87,7 +87,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   const [errorMsg, setErrorMsg] = useState('');
 
   // 현재 열려있는 모달 관리
-  const [activeModal, setActiveModal] = useState<'none' | 'conversations' | 'details' | 'password' | 'limit'>('none');
+  const [activeModal, setActiveModal] = useState<'none' | 'conversations' | 'details' | 'password' | 'limit' | 'delete'>('none');
   const [targetUser, setTargetUser] = useState<UserAdminView | null>(null);
 
   // 1. 대화 내역 모달 상태
@@ -118,6 +118,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   const [isSystemSettingsLoading, setIsSystemSettingsLoading] = useState(false);
   const [isSavingSystemSettings, setIsSavingSystemSettings] = useState(false);
   const [systemSettingsMsg, setSystemSettingsMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // 6. 사용자 삭제 상태
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
 
   const { darkMode } = useChatStore();
   const { user: currentUser } = useAuthStore();
@@ -365,6 +368,39 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
       alert(err.message);
     } finally {
       setIsSavingLimit(false);
+    }
+  };
+
+  // 사용자 삭제 모달 열기
+  const handleOpenDeleteModal = (user: UserAdminView) => {
+    setTargetUser(user);
+    setActiveModal('delete');
+  };
+
+  // 사용자 삭제 실행
+  const handleDeleteUser = async () => {
+    if (!targetUser) return;
+    setIsDeletingUser(true);
+
+    try {
+      const res = await authFetch(`${API_V1_BASE}/admin/users/${targetUser.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ detail: '사용자 삭제에 실패했습니다.' }));
+        throw new Error(errData.detail || '사용자 삭제 중 오류가 발생했습니다.');
+      }
+
+      const data = await res.json();
+      // 목록에서 즉시 제거
+      setUsers(prev => prev.filter(u => u.id !== targetUser.id));
+      setActiveModal('none');
+      alert(data.message || '사용자가 삭제되었습니다.');
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsDeletingUser(false);
     }
   };
 
@@ -618,6 +654,17 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                             title={u.is_active ? '사용자 비활성화' : '사용자 활성화'}
                           >
                             {u.is_active ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
+
+                        {/* 6. 사용자 삭제 버튼 (관리자 본인 및 다른 관리자 계정 제외) */}
+                        {u.id !== currentUser?.id && !u.is_admin && (
+                          <button
+                            onClick={() => handleOpenDeleteModal(u)}
+                            className="p-1.5 rounded-lg border transition-colors cursor-pointer bg-red-600/10 border-red-600/30 hover:bg-red-600/25 text-red-400"
+                            title="사용자 계정 영구 삭제"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         )}
                       </div>
@@ -1095,6 +1142,94 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                 className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer"
               >
                 {isSavingLimit ? '저장 중...' : '한도 적용'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================== 5. 사용자 삭제 확인 모달 ===================== */}
+      {activeModal === 'delete' && targetUser && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
+          onClick={() => !isDeletingUser && setActiveModal('none')}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className={`w-full max-w-sm rounded-2xl border p-6 shadow-2xl transition-all ${
+              darkMode ? 'bg-neutral-900 border-red-900/50 text-slate-100' : 'bg-white border-red-200 text-slate-900'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-4 border-b pb-3 border-red-900/30">
+              <h3 className="font-bold text-sm flex items-center gap-2 text-red-400">
+                <Trash2 className="w-4 h-4" />
+                <span>사용자 계정 영구 삭제</span>
+              </h3>
+              <button 
+                onClick={() => !isDeletingUser && setActiveModal('none')}
+                className={`p-1 rounded hover:bg-slate-800 transition-colors ${darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600'}`}
+                disabled={isDeletingUser}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              {/* 경고 안내 박스 */}
+              <div className="p-4 rounded-xl border border-red-500/30 bg-red-500/10 text-red-300 space-y-2">
+                <div className="font-bold flex items-center gap-1.5 text-red-400">
+                  <ShieldAlert className="w-4 h-4" /> ⚠️ 되돌릴 수 없는 작업입니다
+                </div>
+                <p className="leading-relaxed text-[11px] opacity-90">
+                  아래 사용자의 계정 및 모든 관련 데이터(대화 내역, 설정, 사용 기록 등)가 데이터베이스에서 <strong className="text-red-300">영구적으로 삭제</strong>됩니다.
+                  이 작업은 절대 복구할 수 없습니다.
+                </p>
+              </div>
+
+              {/* 삭제 대상 사용자 정보 */}
+              <div className={`p-3.5 rounded-xl border ${
+                darkMode ? 'bg-neutral-800 border-neutral-700' : 'bg-slate-50 border-slate-200'
+              }`}>
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-red-600/20 border border-red-500/30 flex items-center justify-center text-red-400 font-bold uppercase text-sm">
+                    {targetUser.username[0]}
+                  </div>
+                  <div>
+                    <div className="font-bold text-sm">{targetUser.username}</div>
+                    <div className="text-[11px] text-slate-400 font-mono">{targetUser.email}</div>
+                  </div>
+                </div>
+              </div>
+
+              <p className={`text-[11px] text-center ${
+                darkMode ? 'text-slate-400' : 'text-slate-500'
+              }`}>
+                정말로 <strong>{targetUser.username}</strong> 계정을 삭제하시겠습니까?
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 mt-5 pt-3 border-t border-red-900/20">
+              <button
+                type="button"
+                onClick={() => setActiveModal('none')}
+                disabled={isDeletingUser}
+                className={`px-4 py-2 rounded-lg border text-xs font-semibold hover:opacity-85 transition-opacity cursor-pointer disabled:opacity-40 ${
+                  darkMode ? 'bg-neutral-800 border-neutral-700 text-slate-300' : 'bg-slate-100 border-slate-300 text-slate-700 shadow-sm'
+                }`}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteUser}
+                disabled={isDeletingUser}
+                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition-all disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+              >
+                {isDeletingUser ? (
+                  <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> 삭제 처리 중...</>
+                ) : (
+                  <><Trash2 className="w-3.5 h-3.5" /> 영구 삭제 확인</>
+                )}
               </button>
             </div>
           </div>
