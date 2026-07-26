@@ -6,10 +6,9 @@ import { useAuthStore } from '../store/useAuthStore';
 import { 
   Plus, MessageSquare, Trash2, Edit2, Check, Search, 
   Sun, Moon, Activity, Sliders, Shield, LogOut,
-  SquarePen, ChevronRight, KeyRound
+  SquarePen, ChevronRight, Settings
 } from 'lucide-react';
 
-// 사진 2 스타일 사이드바 패널 토글(접기/열기) 아이콘
 export const SidebarToggleIcon: React.FC<{ className?: string }> = ({ className = "w-5 h-5" }) => (
   <svg
     viewBox="0 0 24 24"
@@ -31,8 +30,7 @@ interface SidebarProps {
   onClose?: () => void;
   onOpenStatus: () => void;
   onOpenAdmin?: () => void;
-  onOpenProfile?: () => void;
-  onOpenPassword?: () => void;
+  onOpenSettings?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
@@ -40,9 +38,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggle, 
   onClose,
   onOpenStatus, 
-  onOpenAdmin, 
-  onOpenProfile,
-  onOpenPassword
+  onOpenAdmin,
+  onOpenSettings,
 }) => {
   const navigate = useNavigate();
 
@@ -69,7 +66,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
 
-  // 팝업 바깥 클릭 시 닫기 처리
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
@@ -111,7 +107,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <>
-      {/* 모바일 전용 배경 오버레이 */}
       {isOpen && (
         <div
           onClick={onToggle}
@@ -125,10 +120,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ${darkMode ? 'bg-neutral-900 border-neutral-800/80 text-slate-100' : 'bg-slate-50 border-slate-200 text-slate-900'}
         ${isOpen ? 'w-64 translate-x-0' : 'w-16 -translate-x-full md:translate-x-0'}
       `}>
-        {/* ======================= 1. 사이드바가 펼쳐졌을 때 (Expanded - 사진 2 스타일) ======================= */}
         {isOpen ? (
           <div className="flex flex-col h-full overflow-hidden">
-            {/* 상단 Header (서비스 타이틀 & 우측 아이콘 버튼들: 돋보기, 사이드바 닫기) */}
+            {/* 상단 헤더 */}
             <div className="p-3.5 flex items-center justify-between">
               <button
                 onClick={() => { goHome(); navigate('/'); handleMobileClose(); }}
@@ -139,9 +133,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className="font-semibold tracking-tight text-slate-900 dark:text-slate-100">Diffusion Gemma</span>
               </button>
 
-              {/* 우측 아이콘 버튼 그룹 (사진 2 우측 상단 스타일) */}
               <div className="flex items-center gap-1">
-                {/* 검색 토글 버튼 */}
                 <button
                   onClick={() => setShowSearch(!showSearch)}
                   className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
@@ -154,7 +146,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <Search className="w-4 h-4" />
                 </button>
 
-                {/* 사이드바 닫기 버튼 (사진 2 우측 상단 메인 버튼!) */}
                 <button
                   onClick={onToggle}
                   className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
@@ -169,7 +160,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </div>
 
-            {/* 새 대화 시작 버튼 (사진 2 스타일) */}
+            {/* 새 대화 버튼 */}
             <div className="px-3 pb-2 space-y-2">
               <button
                 onClick={() => { createSession(); navigate('/'); handleMobileClose(); }}
@@ -186,7 +177,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <Plus className="w-3.5 h-3.5 opacity-60" />
               </button>
 
-              {/* 검색 창 (검색 버튼 클릭 시 토글 또는 항상 표시) */}
               {showSearch && (
                 <div className="relative animate-fadeIn">
                   <Search className={`w-3.5 h-3.5 absolute left-3 top-2.5 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`} />
@@ -268,9 +258,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               })}
             </div>
 
-            {/* 하단 유저 프로필 및 계정 팝업 카드 */}
+            {/* 하단 유저 영역 */}
             <div className={`p-3 border-t relative text-xs ${darkMode ? 'border-neutral-800' : 'border-slate-200'}`} ref={settingsRef}>
-              {/* 관리자 패널 & 백엔드 상태 점검 (프로필 위쪽에 밖으로 배치) */}
               {user?.is_admin && (
                 <div className="mb-2 space-y-1">
                   {onOpenAdmin && (
@@ -284,34 +273,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <span>관리자 패널</span>
                     </button>
                   )}
-
-                  {onOpenStatus && (
-                    <button
-                      onClick={() => onOpenStatus()}
-                      className={`w-full flex items-center gap-3 p-2 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
-                        darkMode ? 'hover:bg-neutral-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
-                      }`}
-                    >
-                      <Activity className="w-4 h-4 text-indigo-400" />
-                      <span>백엔드 상태 점검</span>
-                    </button>
-                  )}
+                  <button
+                    onClick={() => onOpenStatus()}
+                    className={`w-full flex items-center gap-3 p-2 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
+                      darkMode ? 'hover:bg-neutral-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
+                    }`}
+                  >
+                    <Activity className="w-4 h-4 text-indigo-400" />
+                    <span>백엔드 상태 점검</span>
+                  </button>
                 </div>
               )}
 
-              {/* 이미지 스타일 계정/설정 팝업 카드 */}
+              {/* 계정 설정 팝업 */}
               {isSettingsOpen && (
                 <div className={`
-                  absolute bottom-full mb-2 left-2 right-2 p-2 rounded-2xl shadow-2xl border z-50 space-y-1 backdrop-blur-md transition-all animate-in fade-in slide-in-from-bottom-2 duration-150
+                  absolute bottom-full mb-2 left-2 right-2 p-2 rounded-2xl shadow-2xl border z-50 space-y-1 backdrop-blur-md
                   ${darkMode 
                     ? 'bg-slate-900/95 border-slate-800 text-slate-100 shadow-slate-950/80' 
                     : 'bg-white/95 border-slate-200 text-slate-800 shadow-slate-300/60'}
                 `}>
-                  {/* 상단 프로필 영역 (이미지 맨 위 계정 영역과 동일) */}
                   {user && (
                     <button
                       onClick={() => {
-                        if (onOpenProfile) onOpenProfile();
+                        if (onOpenSettings) onOpenSettings();
                         setIsSettingsOpen(false);
                       }}
                       className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors cursor-pointer ${
@@ -335,21 +320,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                   <div className={`my-1 border-b ${darkMode ? 'border-neutral-800' : 'border-slate-100'}`} />
 
-                  {/* 메뉴 항목들 */}
-                  {onOpenPassword && (
-                    <button
-                      onClick={() => {
-                        onOpenPassword();
-                        setIsSettingsOpen(false);
-                      }}
-                      className={`w-full flex items-center gap-3 p-2 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
-                        darkMode ? 'hover:bg-neutral-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
-                      }`}
-                    >
-                      <KeyRound className="w-4 h-4 text-slate-500" />
-                      <span>비밀번호 변경</span>
-                    </button>
-                  )}
+                  <button
+                    onClick={() => {
+                      if (onOpenSettings) onOpenSettings();
+                      setIsSettingsOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 p-2 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
+                      darkMode ? 'hover:bg-neutral-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
+                    }`}
+                  >
+                    <Settings className="w-4 h-4 text-slate-500" />
+                    <span>설정 및 프로필</span>
+                  </button>
 
                   <button
                     onClick={() => {
@@ -365,9 +347,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </button>
 
                   <button
-                    onClick={() => {
-                      toggleDarkMode();
-                    }}
+                    onClick={() => toggleDarkMode()}
                     className={`w-full flex items-center gap-3 p-2 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
                       darkMode ? 'hover:bg-neutral-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
                     }`}
@@ -391,7 +371,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
               )}
 
-              {/* 하단 메인 계정 프로필 카드 버튼 */}
               {user && (
                 <button
                   onClick={() => setIsSettingsOpen(!isSettingsOpen)}
@@ -410,18 +389,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <span className="text-[9px] text-slate-400 truncate leading-none mt-0.5">{user.email || 'Free'}</span>
                     </div>
                   </div>
-
                   <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-200 ${isSettingsOpen ? '-rotate-90 text-indigo-400' : 'opacity-60'}`} />
                 </button>
               )}
             </div>
           </div>
         ) : (
-          /* ======================= 2. 사이드바가 접혔을 때 (Collapsed - 사진 1 스타일 미니 세로바) ======================= */
+          /* 접힌 상태 */
           <div className="flex flex-col h-full justify-between items-center py-3.5 px-2">
-            {/* 상단 미니 아이콘 목록 (사진 1 스타일) */}
             <div className="flex flex-col items-center gap-4">
-              {/* 1. 사이드바 열기/펼치기 버튼 (사진 1 맨 위 아이콘 위치) */}
               <button
                 onClick={onToggle}
                 className={`p-2 rounded-xl transition-colors cursor-pointer ${
@@ -431,8 +407,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               >
                 <SidebarToggleIcon className="w-5 h-5" />
               </button>
-
-              {/* 2. 새 채팅 버튼 (사진 1 2번째 연필 아이콘) */}
               <button
                 onClick={() => { createSession(); navigate('/'); }}
                 className={`p-2 rounded-xl transition-colors cursor-pointer ${
@@ -442,8 +416,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               >
                 <SquarePen className="w-5 h-5" />
               </button>
-
-              {/* 3. 검색 아이콘 (사진 1 3번째 돋보기 아이콘) */}
               <button
                 onClick={onToggle}
                 className={`p-2 rounded-xl transition-colors cursor-pointer ${
@@ -453,8 +425,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               >
                 <Search className="w-5 h-5" />
               </button>
-
-              {/* 4. 최근 대화 아이콘 (사진 1 4번째 말풍선 아이콘) */}
               <button
                 onClick={onToggle}
                 className={`p-2 rounded-xl transition-colors cursor-pointer ${
@@ -466,7 +436,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
             </div>
 
-            {/* 하단 유저 프로필 아바타 및 관리자 버튼 */}
             <div className="flex flex-col items-center gap-2">
               {user?.is_admin && (
                 <>
@@ -481,20 +450,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <Shield className="w-5 h-5 text-amber-500" />
                     </button>
                   )}
-                  {onOpenStatus && (
-                    <button
-                      onClick={onOpenStatus}
-                      className={`p-2 rounded-xl transition-colors cursor-pointer ${
-                        darkMode ? 'text-slate-400 hover:text-slate-100 hover:bg-neutral-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-                      }`}
-                      title="백엔드 상태 점검"
-                    >
-                      <Activity className="w-5 h-5 text-indigo-400" />
-                    </button>
-                  )}
+                  <button
+                    onClick={onOpenStatus}
+                    className={`p-2 rounded-xl transition-colors cursor-pointer ${
+                      darkMode ? 'text-slate-400 hover:text-slate-100 hover:bg-neutral-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                    }`}
+                    title="백엔드 상태 점검"
+                  >
+                    <Activity className="w-5 h-5 text-indigo-400" />
+                  </button>
                 </>
               )}
-
               {user && (
                 <button
                   onClick={onToggle}
@@ -513,4 +479,3 @@ export const Sidebar: React.FC<SidebarProps> = ({
 };
 
 export default Sidebar;
-

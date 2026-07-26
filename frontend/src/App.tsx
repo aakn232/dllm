@@ -8,8 +8,7 @@ import { ChatMessageItem } from './components/ChatMessageItem';
 import { ChatInput } from './components/ChatInput';
 import { StatusDashboard } from './components/StatusDashboard';
 import { CustomInstructionsModal } from './components/CustomInstructionsModal';
-import { ProfileModal } from './components/ProfileModal';
-import { PasswordChangeModal } from './components/PasswordChangeModal';
+import { UserSettingsModal } from './components/UserSettingsModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ErrorBuggyComponent } from './components/ErrorBuggyComponent';
 import { ChatMessageSkeleton } from './components/skeletons/ChatMessageSkeleton';
@@ -53,16 +52,13 @@ export const App: React.FC = () => {
   });
   const [statusOpen, setStatusOpen] = useState(false);
   const [isAdminView, setIsAdminView] = useState(false);
-  const [isProfileView, setIsProfileView] = useState(false);
-  const [isPasswordView, setIsPasswordView] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // 1. 앱 시작 시 인증 체크
   useEffect(() => {
     checkAuth();
   }, []);
 
-  // 2. 인증 성공 시 세션 및 맞춤지침 병렬 패치 (URL 기반 세션 선택은 ChatView가 담당)
   useEffect(() => {
     if (isAuthenticated) {
       fetchSessions();
@@ -70,7 +66,6 @@ export const App: React.FC = () => {
     }
   }, [isAuthenticated]);
 
-  // 테마 초기화 동기화
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add('dark');
@@ -83,7 +78,6 @@ export const App: React.FC = () => {
     }
   }, [darkMode]);
 
-  // 단축키 설정 (Ctrl+K: 새 대화)
   useEffect(() => {
     if (!isAuthenticated) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -97,12 +91,10 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isAuthenticated, navigate]);
 
-  // 자동 스크롤
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // E2E / 렌더링 에러 테스트용 경로 핸들러
   if (typeof window !== 'undefined' && (window.location.pathname === '/test-error' || window.location.search.includes('test_error=true'))) {
     return (
       <div className={`min-h-screen w-screen flex items-center justify-center p-6 ${darkMode ? 'bg-black text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
@@ -117,8 +109,9 @@ export const App: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className={`h-screen w-screen flex items-center justify-center font-sans ${darkMode ? 'bg-black text-slate-100' : 'bg-slate-50 text-slate-900'
-        }`}>
+      <div className={`h-screen w-screen flex items-center justify-center font-sans ${
+        darkMode ? 'bg-black text-slate-100' : 'bg-slate-50 text-slate-900'
+      }`}>
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-4 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
           <span className="text-xs text-slate-500 font-medium">인증 정보를 확인하는 중...</span>
@@ -137,8 +130,9 @@ export const App: React.FC = () => {
 
   return (
     <ErrorBoundary fallbackTitle="애플리케이션 실행 중 오류가 발생했습니다.">
-      <div className={`flex h-screen w-screen overflow-hidden font-sans transition-colors duration-200 ${darkMode ? 'bg-black text-slate-100' : 'bg-slate-50 text-slate-900'
-        }`}>
+      <div className={`flex h-screen w-screen overflow-hidden font-sans transition-colors duration-200 ${
+        darkMode ? 'bg-black text-slate-100' : 'bg-slate-50 text-slate-900'
+      }`}>
         <Routes>
           <Route path="/" element={<ChatView />} />
           <Route path="/c/:sessionId" element={<ChatView />} />
@@ -150,21 +144,22 @@ export const App: React.FC = () => {
           isOpen={sidebarOpen}
           onToggle={() => setSidebarOpen(!sidebarOpen)}
           onClose={() => setSidebarOpen(false)}
-          onOpenStatus={() => { setStatusOpen(true); }}
-          onOpenAdmin={() => { setIsAdminView(true); setIsProfileView(false); setIsPasswordView(false); }}
-          onOpenProfile={() => { setIsProfileView(true); setIsPasswordView(false); }}
-          onOpenPassword={() => { setIsPasswordView(true); setIsProfileView(false); }}
+          onOpenStatus={() => setStatusOpen(true)}
+          onOpenAdmin={() => setIsAdminView(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
         />
 
         {/* 메인 영역 */}
         <main className="flex-1 flex flex-col h-full overflow-hidden relative">
           {/* 모바일 전용 상단 헤더 바 */}
-          <header className={`md:hidden flex items-center justify-between px-3.5 py-2.5 border-b backdrop-blur-md z-20 transition-colors ${darkMode ? 'border-neutral-800 bg-neutral-900/90 text-slate-100' : 'border-slate-200 bg-white/90 text-slate-800 shadow-sm'
-            }`}>
+          <header className={`md:hidden flex items-center justify-between px-3.5 py-2.5 border-b backdrop-blur-md z-20 transition-colors ${
+            darkMode ? 'border-neutral-800 bg-neutral-900/90 text-slate-100' : 'border-slate-200 bg-white/90 text-slate-800 shadow-sm'
+          }`}>
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className={`p-2 rounded-lg border transition-colors cursor-pointer ${darkMode ? 'border-neutral-700 bg-neutral-800 text-slate-300 hover:text-white' : 'border-slate-300 bg-slate-100 text-slate-700 hover:text-black'
-                }`}
+              className={`p-2 rounded-lg border transition-colors cursor-pointer ${
+                darkMode ? 'border-neutral-700 bg-neutral-800 text-slate-300 hover:text-white' : 'border-slate-300 bg-slate-100 text-slate-700 hover:text-black'
+              }`}
               title={sidebarOpen ? "사이드바 닫기" : "사이드바 열기"}
             >
               <Menu className="w-5 h-5" />
@@ -181,8 +176,9 @@ export const App: React.FC = () => {
 
             <button
               onClick={() => { createSession(); navigate('/'); setSidebarOpen(false); }}
-              className={`p-2 rounded-lg border transition-colors cursor-pointer ${darkMode ? 'border-neutral-700 bg-neutral-800 text-indigo-400' : 'border-slate-300 bg-slate-100 text-indigo-600'
-                }`}
+              className={`p-2 rounded-lg border transition-colors cursor-pointer ${
+                darkMode ? 'border-neutral-700 bg-neutral-800 text-indigo-400' : 'border-slate-300 bg-slate-100 text-indigo-600'
+              }`}
               title="새 채팅 시작"
             >
               <Plus className="w-5 h-5" />
@@ -229,15 +225,11 @@ export const App: React.FC = () => {
         {/* 맞춤 지침 설정 모달 */}
         <CustomInstructionsModal />
 
-        {/* 프로필 정보 모달 (비밀번호 항목 제거된 정보 전용 모달) */}
-        <ProfileModal isOpen={isProfileView} onClose={() => setIsProfileView(false)} />
-
-        {/* 비밀번호 변경 모달 */}
-        <PasswordChangeModal isOpen={isPasswordView} onClose={() => setIsPasswordView(false)} />
+        {/* 사용자 설정 모달 (프로필 정보 + 비밀번호 변경 + 회원탈퇴 통합) */}
+        <UserSettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
       </div>
     </ErrorBoundary>
   );
 };
 
 export default App;
-
