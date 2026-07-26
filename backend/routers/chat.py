@@ -1,6 +1,6 @@
 import json
 import logging
-from datetime import date
+from datetime import date, datetime
 from typing import AsyncGenerator
 from fastapi import APIRouter, Request, HTTPException, Depends
 from fastapi.responses import StreamingResponse
@@ -46,6 +46,11 @@ def save_chat_completion_result(
                 thinking_content=clean_thinking
             )
             db.add(msg)
+            
+            session_obj = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+            if session_obj:
+                session_obj.updated_at = datetime.utcnow()
+                
             db.commit()
             db.refresh(msg)
             msg_id = msg.id

@@ -1,4 +1,5 @@
 from typing import List
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, selectinload
 from backend.database import get_db
@@ -126,6 +127,7 @@ def create_message(
     if session.title == "새 대화" and req.role == "user":
         session.title = content_str[:30] if len(content_str) > 30 else content_str
 
+    session.updated_at = datetime.utcnow()
     db.commit()
     return message
 
@@ -186,6 +188,7 @@ def edit_and_truncate_messages(
     for msg in later_messages:
         db.delete(msg)
 
+    session.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(target_msg)
     return target_msg

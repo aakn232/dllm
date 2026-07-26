@@ -455,6 +455,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           m.role === 'assistant' && m.isStreaming ? { ...m, isStreaming: false } : m
         )
       }));
+      get().fetchSessions();
     }
   },
 
@@ -658,6 +659,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           m.role === 'assistant' && m.isStreaming ? { ...m, isStreaming: false } : m
         )
       }));
+      get().fetchSessions();
     }
   },
 
