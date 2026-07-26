@@ -353,33 +353,39 @@ async def chat_completions(
     if not NVIDIA_API_KEY:
         logger.warning("NVIDIA_API_KEY is not set in environment.")
 
-    # 1. 일일 한도 체크
-    await run_in_threadpool(check_and_enforce_limit, current_user, db)
+    # 사전 검증 일괄 처리: 4개의 순차 DB 쿼리를 단일 스레드풀 디스패치로 배치 통합
+    # (스레드 디스패치 오버헤드 4회 → 1회로 축소)
+    def _pre_validate_all():
+        # 1. 일일 한도 체크 (초과 시 HTTPException 발생)
+        check_and_enforce_limit(current_user, db)
 
-    # 2. 세션 유효성 검사 (세션 소유주 여부 확인)
-    if req.session_id:
-        def _get_session():
-            return db.query(ChatSession).filter(
+        # 2. 세션 유효성 검사 (세션 소유주 여부 확인)
+        session_valid = True
+        if req.session_id:
+            session = db.query(ChatSession).filter(
                 ChatSession.id == req.session_id,
                 ChatSession.user_id == current_user.id
             ).first()
-        session = await run_in_threadpool(_get_session)
-        if not session:
-            db.close()
-            raise HTTPException(status_code=404, detail="세션을 찾을 수 없거나 접근 권한이 없습니다.")
+            if not session:
+                session_valid = False
 
-    # 3. 맞춤지침 가져오기 (user_id 기준)
-    def _get_instruction():
-        return db.query(CustomInstruction).filter(
+        # 3. 맞춤지침 가져오기 (user_id 기준)
+        instruction = db.query(CustomInstruction).filter(
             CustomInstruction.user_id == current_user.id,
             CustomInstruction.is_enabled.is_(True)
         ).first()
-    instruction = await run_in_threadpool(_get_instruction)
 
-    # 3-1. 시스템 전역 설정 (max_tokens) 가져오기
-    def _get_system_settings():
-        return db.query(SystemSettings).filter(SystemSettings.id == 1).first()
-    sys_settings = await run_in_threadpool(_get_system_settings)
+        # 4. 시스템 전역 설정 (max_tokens) 가져오기
+        sys_settings = db.query(SystemSettings).filter(SystemSettings.id == 1).first()
+
+        return session_valid, instruction, sys_settings
+
+    session_valid, instruction, sys_settings = await run_in_threadpool(_pre_validate_all)
+
+    if req.session_id and not session_valid:
+        db.close()
+        raise HTTPException(status_code=404, detail="세션을 찾을 수 없거나 접근 권한이 없습니다.")
+
     effective_max_tokens = req.max_tokens or (sys_settings.max_tokens if sys_settings else 8192)
 
     # Early DB Release Pattern: 파라미터 및 세션 검증이 모두 끝난 후 스트리밍 시작 전 DB 연결 즉시 반납

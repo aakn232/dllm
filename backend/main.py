@@ -64,6 +64,7 @@ app.add_middleware(
     allow_credentials=allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
+    max_age=86400,  # CORS Preflight 캐시: 24시간 (브라우저가 OPTIONS 요청을 캐싱하여 반복 Preflight 제거)
 )
 
 app.include_router(auth.router)
