@@ -86,6 +86,8 @@ class ChatMessage(Base):
     role = Column(String(20), nullable=False)  # user, assistant, system
     content = Column(Text, nullable=False)
     thinking_content = Column(Text, nullable=True)
+    reasoning_content = Column(Text, nullable=True)
+    raw_response = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
     session = relationship("ChatSession", back_populates="messages")

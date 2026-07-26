@@ -55,8 +55,20 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message }) => 
     }
   };
 
+  const getJsonString = () => {
+    if (message.raw_response) {
+      try {
+        const parsed = JSON.parse(message.raw_response);
+        return JSON.stringify(parsed, null, 2);
+      } catch (e) {
+        return message.raw_response;
+      }
+    }
+    return JSON.stringify(message, null, 2);
+  };
+
   const handleCopyJson = () => {
-    navigator.clipboard.writeText(JSON.stringify(message, null, 2));
+    navigator.clipboard.writeText(getJsonString());
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -109,7 +121,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message }) => 
                     ? 'text-slate-400 hover:text-indigo-400 hover:bg-slate-800'
                     : 'text-slate-500 hover:text-indigo-600 hover:bg-slate-200'
                 }`}
-                title="원본 JSON 보기 (관리자 전용)"
+                title={message.raw_response ? "원본 데이터 보기 (Raw API Response)" : "상태 데이터 보기 (Processed State Fallback)"}
               >
                 <Code className="w-3.5 h-3.5" />
                 <span className="font-mono text-[10px]">JSON</span>
@@ -217,9 +229,10 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message }) => 
           </div>
         ) : (
           <>
-            {!isUser && message.thinking_content && (
+            {!isUser && (message.reasoning_content || message.thinking_content) && (
               <ThinkingBlock
-                content={message.thinking_content}
+                reasoningContent={message.reasoning_content}
+                thinkingContent={message.thinking_content}
                 thinkingType={message.thinking_type}
                 isStreaming={message.isStreaming}
                 hasAssistantContent={!!message.content && message.content.trim().length > 0}
@@ -243,7 +256,19 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message }) => 
             }`}>
               <div className="flex items-center gap-2">
                 <Code className="w-5 h-5 text-indigo-500" />
-                <h3 className="font-semibold text-sm sm:text-base">메시지 원본 JSON <span className="text-xs font-normal text-indigo-400 ml-1">(관리자 전용)</span></h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-sm sm:text-base">
+                    {message.raw_response ? 'API 원본 데이터 (Raw Chunks)' : '가공된 상태 데이터 (Fallback)'}
+                  </h3>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-medium border ${
+                    message.raw_response 
+                      ? (darkMode ? 'bg-indigo-900/50 text-indigo-300 border-indigo-700/50' : 'bg-indigo-50 text-indigo-600 border-indigo-200')
+                      : (darkMode ? 'bg-amber-900/50 text-amber-300 border-amber-700/50' : 'bg-amber-50 text-amber-600 border-amber-200')
+                  }`}>
+                    {message.raw_response ? 'Original API Response' : 'Processed State Object'}
+                  </span>
+                  <span className="text-xs font-normal text-indigo-400 ml-1">(관리자 전용)</span>
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -275,7 +300,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message }) => 
               <pre className={`p-4 rounded-lg whitespace-pre-wrap break-words break-all selection:bg-indigo-500 selection:text-white ${
                 darkMode ? 'bg-slate-950 text-indigo-300 border border-slate-800' : 'bg-slate-900 text-indigo-300'
               }`}>
-                {JSON.stringify(message, null, 2)}
+                {getJsonString()}
               </pre>
             </div>
           </div>

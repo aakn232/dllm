@@ -11,6 +11,7 @@ class MessageCreate(BaseModel):
     role: str
     content: Union[str, List[Any]]  # 텍스트 단일 혹은 멀티모달 객체 리스트
     thinking_content: Optional[str] = None
+    reasoning_content: Optional[str] = None
     attachments: Optional[List[AttachmentSchema]] = []
 
 class MessageResponse(BaseModel):
@@ -19,6 +20,8 @@ class MessageResponse(BaseModel):
     role: str
     content: str
     thinking_content: Optional[str] = None
+    reasoning_content: Optional[str] = None
+    raw_response: Optional[str] = None
     attachments: List[AttachmentSchema] = []
     created_at: datetime
 
@@ -187,6 +190,8 @@ class AdminChatMessageView(BaseModel):
     role: str
     content: str
     thinking_content: Optional[str] = None
+    reasoning_content: Optional[str] = None
+    raw_response: Optional[str] = None
     created_at: datetime
     attachments: List[AttachmentSchema] = []
 

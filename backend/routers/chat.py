@@ -26,7 +26,9 @@ def save_chat_completion_result(
     user_id: str | None,
     full_assistant_content: str,
     full_thinking_content: str,
-    actual_tokens: int
+    full_reasoning_content: str,
+    actual_tokens: int,
+    raw_response_str: str | None = None
 ) -> str | None:
     """
     스트리밍 종료 후 메시지 저장 및 사용량 기록을 짧은 독립 세션으로 처리 (Early Release Pattern)
@@ -39,11 +41,14 @@ def save_chat_completion_result(
     try:
         if session_id and full_assistant_content.strip():
             clean_thinking = full_thinking_content.strip() if full_thinking_content.strip() else None
+            clean_reasoning = full_reasoning_content.strip() if full_reasoning_content.strip() else None
             msg = ChatMessage(
                 session_id=session_id,
                 role="assistant",
                 content=full_assistant_content,
-                thinking_content=clean_thinking
+                thinking_content=clean_thinking,
+                reasoning_content=clean_reasoning,
+                raw_response=raw_response_str
             )
             db.add(msg)
             
@@ -223,6 +228,8 @@ async def stream_nvidia_response(
     """
     full_assistant_content = ""
     full_thinking_content = ""
+    full_reasoning_content = ""
+    raw_chunks = []
     
     thinking_buffer = ""
     in_thinking_tag = False
@@ -235,6 +242,7 @@ async def stream_nvidia_response(
 
             data_str = line[6:].strip()
             if data_str == "[DONE]":
+                raw_response_json = json.dumps(raw_chunks, ensure_ascii=False) if raw_chunks else None
                 # 최종 응답 DB 저장 및 사용량 누적 기록 (Early Release Pattern 적용)
                 msg_id = await run_in_threadpool(
                     save_chat_completion_result,
@@ -242,16 +250,20 @@ async def stream_nvidia_response(
                     user_id,
                     full_assistant_content,
                     full_thinking_content,
-                    actual_tokens
+                    full_reasoning_content,
+                    actual_tokens,
+                    raw_response_json
                 )
                 if msg_id:
-                    yield f"data: {json.dumps({'type': 'message_id', 'id': msg_id})}\n\n"
+                    yield f"data: {json.dumps({'type': 'message_id', 'id': msg_id, 'raw_response': raw_response_json})}\n\n"
 
                 yield "data: [DONE]\n\n"
                 break
 
             try:
                 chunk_json = json.loads(data_str)
+                raw_chunks.append(chunk_json)
+                yield f"data: {json.dumps({'type': 'raw_chunk', 'chunk': chunk_json})}\n\n"
                 
                 # 토큰 사용량 파싱
                 if "usage" in chunk_json and chunk_json["usage"]:
@@ -270,8 +282,8 @@ async def stream_nvidia_response(
                     # <|channel>thought 등의 특수 토큰 정돈
                     clean_reasoning = reasoning_chunk.replace("<|channel>thought", "").replace("<|channel>", "")
                     if clean_reasoning:
-                        full_thinking_content += clean_reasoning
-                        yield f"data: {json.dumps({'type': 'thinking_stream', 'delta': clean_reasoning, 'source': 'Reasoning'})}\n\n"
+                        full_reasoning_content += clean_reasoning
+                        yield f"data: {json.dumps({'type': 'reasoning_stream', 'delta': clean_reasoning, 'source': 'Reasoning'})}\n\n"
 
                 if not content_chunk:
                     continue

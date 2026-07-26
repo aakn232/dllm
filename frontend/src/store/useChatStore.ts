@@ -340,7 +340,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       let buffer = '';
       let streamAssistantContent = '';
       let streamThinkingContent = '';
+      let streamReasoningContent = '';
       let streamThinkingType: 'Reasoning' | 'Thinking' | null = null;
+      let finalMessageId = assistantMsgTempId;
+      let liveRawChunks: any[] = [];
+      let finalRawResponse: string | undefined = undefined;
 
       let lastRenderTime = 0;
 
@@ -370,7 +374,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               if (data.source) {
                 streamThinkingType = data.source;
               }
+            } else if (data.type === 'reasoning_stream') {
+              streamReasoningContent += data.delta;
+            } else if (data.type === 'raw_chunk') {
+              liveRawChunks.push(data.chunk);
+              finalRawResponse = JSON.stringify(liveRawChunks);
             } else if (data.type === 'message_id') {
+              finalMessageId = data.id;
+              finalRawResponse = data.raw_response;
               const elapsedSec = (performance.now() - startTime) / 1000;
               const currentTps = elapsedSec > 0 ? Math.round(tokenCount / elapsedSec) : 0;
               if (typeof window !== 'undefined') {
@@ -381,7 +392,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               }
               set(state => ({
                 messages: state.messages.map(m =>
-                  m.id === assistantMsgTempId ? { ...m, id: data.id, tps: currentTps, thinking_type: streamThinkingType } : m
+                  (m.id === assistantMsgTempId || m.id === finalMessageId) ? { ...m, id: finalMessageId, tps: currentTps, thinking_type: streamThinkingType, raw_response: finalRawResponse } : m
                 )
               }));
               continue;
@@ -396,11 +407,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               set(state => ({
                 tps: currentTps,
                 messages: state.messages.map(m =>
-                  m.id === assistantMsgTempId
+                  (m.id === assistantMsgTempId || m.id === finalMessageId)
                     ? {
                         ...m,
                         content: streamAssistantContent,
                         thinking_content: streamThinkingContent,
+                        reasoning_content: streamReasoningContent,
                         thinking_type: streamThinkingType,
                         tps: currentTps
                       }
@@ -419,14 +431,17 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const finalTps = elapsedSec > 0 ? Math.round(tokenCount / elapsedSec) : 0;
       set(state => {
         const updatedMessages = state.messages.map(m =>
-          m.id === assistantMsgTempId
+          (m.id === assistantMsgTempId || m.id === finalMessageId)
             ? {
                 ...m,
+                id: finalMessageId,
                 content: streamAssistantContent,
                 thinking_content: streamThinkingContent,
+                reasoning_content: streamReasoningContent,
                 thinking_type: streamThinkingType,
                 tps: finalTps,
-                isStreaming: false
+                isStreaming: false,
+                raw_response: finalRawResponse
               }
             : m
         );
@@ -577,7 +592,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       let buffer = '';
       let streamAssistantContent = '';
       let streamThinkingContent = '';
+      let streamReasoningContent = '';
       let streamThinkingType: 'Reasoning' | 'Thinking' | null = null;
+      let finalMessageId = assistantMsgTempId;
+      let liveRawChunks: any[] = [];
+      let finalRawResponse: string | undefined = undefined;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -605,7 +624,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               if (data.source) {
                 streamThinkingType = data.source;
               }
+            } else if (data.type === 'reasoning_stream') {
+              streamReasoningContent += data.delta;
+            } else if (data.type === 'raw_chunk') {
+              liveRawChunks.push(data.chunk);
+              finalRawResponse = JSON.stringify(liveRawChunks);
             } else if (data.type === 'message_id') {
+              finalMessageId = data.id;
+              finalRawResponse = data.raw_response;
               const elapsedSec = (performance.now() - startTime) / 1000;
               const currentTps = elapsedSec > 0 ? Math.round(tokenCount / elapsedSec) : 0;
               if (typeof window !== 'undefined') {
@@ -616,7 +642,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               }
               set(state => ({
                 messages: state.messages.map(m =>
-                  m.id === assistantMsgTempId ? { ...m, id: data.id, tps: currentTps, thinking_type: streamThinkingType } : m
+                  (m.id === assistantMsgTempId || m.id === finalMessageId) ? { ...m, id: finalMessageId, tps: currentTps, thinking_type: streamThinkingType, raw_response: finalRawResponse } : m
                 )
               }));
               continue;
@@ -628,13 +654,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             set(state => ({
               tps: currentTps,
               messages: state.messages.map(m =>
-                m.id === assistantMsgTempId
+                (m.id === assistantMsgTempId || m.id === finalMessageId)
                   ? {
                       ...m,
                       content: streamAssistantContent,
                       thinking_content: streamThinkingContent,
+                      reasoning_content: streamReasoningContent,
                       thinking_type: streamThinkingType,
-                      tps: currentTps
+                      tps: currentTps,
+                      raw_response: finalRawResponse
                     }
                   : m
               )

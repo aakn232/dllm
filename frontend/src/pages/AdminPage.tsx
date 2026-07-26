@@ -70,6 +70,9 @@ interface AdminChatMessageView {
   role: string;
   content: string;
   thinking_content?: string | null;
+  reasoning_content?: string | null;
+  raw_response?: string | null;
+  thinking_type?: 'Reasoning' | 'Thinking' | null;
   created_at: string;
   attachments: any[];
 }
@@ -730,11 +733,12 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                             </div>
                           </div>
                           
-                          {/* 생각 과정 (Reasoning / Thinking) 일반 유저 세션과 동일한 ThinkingBlock 표기 */}
-                          {msg.role !== 'user' && msg.thinking_content && (
+                          {/* 생각 과정 (Reasoning / Thinking) 단일 상자 내 탭 구분을 적용한 ThinkingBlock 표기 */}
+                          {msg.role !== 'user' && (msg.reasoning_content || msg.thinking_content) && (
                             <ThinkingBlock
-                              content={msg.thinking_content}
-                              thinkingType="Reasoning"
+                              reasoningContent={msg.reasoning_content}
+                              thinkingContent={msg.thinking_content}
+                              thinkingType={msg.thinking_type}
                               isStreaming={false}
                               hasAssistantContent={!!msg.content && msg.content.trim().length > 0}
                             />

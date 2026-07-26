@@ -10,11 +10,13 @@ export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   thinking_content?: string | null;
+  reasoning_content?: string | null;
   thinking_type?: 'Reasoning' | 'Thinking' | null;
   attachments?: Attachment[];
   created_at?: string;
   isStreaming?: boolean;
   tps?: number;
+  raw_response?: string;
 }
 
 export interface ChatSession {
