@@ -56,7 +56,7 @@ class ChatCompletionRequest(BaseModel):
     enable_thinking: bool = False
     temperature: Optional[float] = 0.7
     top_p: Optional[float] = 0.9
-    max_tokens: Optional[int] = 2048
+    max_tokens: Optional[int] = 8192
 
 # --- 신규 추가된 스키마 ---
 

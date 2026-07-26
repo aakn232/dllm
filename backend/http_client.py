@@ -10,7 +10,7 @@ def get_async_client() -> httpx.AsyncClient:
     """
     global _async_client
     if _async_client is None or _async_client.is_closed:
-        _async_client = httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=15.0))
+        _async_client = httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=15.0))
     return _async_client
 
 async def close_async_client():

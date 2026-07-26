@@ -360,7 +360,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
           try {
             const data = JSON.parse(dataStr);
-            if (data.type === 'content') {
+            if (data.type === 'error') {
+              throw new Error(data.message || '서버 측 스트리밍 오류가 발생했습니다.');
+            } else if (data.type === 'content') {
               streamAssistantContent += data.delta;
               tokenCount += data.delta.split(/\s+/).length || 1;
             } else if (data.type === 'thinking' || data.type === 'thinking_stream') {
@@ -593,7 +595,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
           try {
             const data = JSON.parse(dataStr);
-            if (data.type === 'content') {
+            if (data.type === 'error') {
+              throw new Error(data.message || '서버 측 스트리밍 오류가 발생했습니다.');
+            } else if (data.type === 'content') {
               streamAssistantContent += data.delta;
               tokenCount += data.delta.split(/\s+/).length || 1;
             } else if (data.type === 'thinking' || data.type === 'thinking_stream') {
