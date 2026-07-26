@@ -226,21 +226,12 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message }) => 
         {message.attachments && message.attachments.length > 0 && (
           <div className="flex flex-wrap gap-2 pt-1">
             {message.attachments.map((att, idx) => (
-              att.file_type.startsWith('video/') ? (
-                <video
-                  key={idx}
-                  src={att.file_url}
-                  controls
-                  className="max-w-xs max-h-48 rounded-lg border border-slate-300 dark:border-slate-700 shadow"
-                />
-              ) : (
-                <img
-                  key={idx}
-                  src={att.file_url}
-                  alt="첨부 이미지"
-                  className="max-w-xs max-h-48 rounded-lg border border-slate-300 dark:border-slate-700 object-cover shadow"
-                />
-              )
+              <img
+                key={idx}
+                src={att.file_url}
+                alt="첨부 이미지"
+                className="max-w-xs max-h-48 rounded-lg border border-slate-300 dark:border-slate-700 object-cover shadow"
+              />
             ))}
           </div>
         )}
