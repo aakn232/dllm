@@ -27,30 +27,37 @@ def get_users_list(
     users = db.query(User).all()
     today = date.today()
     
+    user_ids = [u.id for u in users]
+    
+    # 일괄 조회로 N+1 쿼리 문제 해결
+    logs = db.query(UsageLog).filter(
+        UsageLog.user_id.in_(user_ids),
+        UsageLog.date == today
+    ).all() if user_ids else []
+    log_map = {log.user_id: log for log in logs}
+    
+    limits = db.query(UsageLimit).filter(
+        UsageLimit.user_id.in_(user_ids)
+    ).all() if user_ids else []
+    limit_map = {limit.user_id: limit for limit in limits}
+    
     result = []
+    missing_limits = []
+    
     for u in users:
-        # 오늘 로그 조회
-        log = db.query(UsageLog).filter(
-            UsageLog.user_id == u.id,
-            UsageLog.date == today
-        ).first()
-        
+        log = log_map.get(u.id)
         today_tokens = log.token_count if log else 0
         today_requests = log.request_count if log else 0
         
-        # 한도 정보 조회
-        limit = db.query(UsageLimit).filter(UsageLimit.user_id == u.id).first()
+        limit = limit_map.get(u.id)
         if not limit:
-            # 존재하지 않는 경우 기본 레코드 생성
             limit = UsageLimit(
                 user_id=u.id,
                 limit_mode="request_only",
                 daily_request_limit=30,
                 daily_token_limit=None
             )
-            db.add(limit)
-            db.commit()
-            db.refresh(limit)
+            missing_limits.append(limit)
             
         limit_mode = limit.limit_mode
         daily_token_limit = limit.daily_token_limit
@@ -78,6 +85,10 @@ def get_users_list(
             "daily_request_limit": daily_request_limit,
             "remaining_tokens": remaining_tokens
         })
+        
+    if missing_limits:
+        db.add_all(missing_limits)
+        db.commit()
         
     return result
 
