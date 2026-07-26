@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useChatStore } from '../store/useChatStore';
-import { ArrowLeft, Lock, User, Calendar, KeyRound, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Lock, User, Calendar, KeyRound, AlertCircle, CheckCircle2, Trash2 } from 'lucide-react';
 
 interface UserSettingsPageProps {
   onBack: () => void;
 }
 
 export const UserSettingsPage: React.FC<UserSettingsPageProps> = ({ onBack }) => {
-  const { user, changePassword } = useAuthStore();
+  const { user, changePassword, deleteAccount } = useAuthStore();
   const { darkMode } = useChatStore();
 
   const [currentPassword, setCurrentPassword] = useState('');
@@ -18,6 +18,14 @@ export const UserSettingsPage: React.FC<UserSettingsPageProps> = ({ onBack }) =>
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // 회원탈퇴 관련 상태
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
+  const CONFIRM_KEYWORD = '탈퇴합니다';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,6 +58,22 @@ export const UserSettingsPage: React.FC<UserSettingsPageProps> = ({ onBack }) =>
       setErrorMsg(err.message || '비밀번호 변경 중 오류가 발생했습니다.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== CONFIRM_KEYWORD) {
+      setDeleteError(`"${CONFIRM_KEYWORD}"를 정확히 입력해 주세요.`);
+      return;
+    }
+    setDeleteError('');
+    setIsDeleting(true);
+    try {
+      await deleteAccount();
+      // deleteAccount 내부에서 goHome() 호출됨 — 별도 처리 불필요
+    } catch (err: any) {
+      setDeleteError(err.message || '계정 삭제 중 오류가 발생했습니다.');
+      setIsDeleting(false);
     }
   };
 
@@ -209,6 +233,82 @@ export const UserSettingsPage: React.FC<UserSettingsPageProps> = ({ onBack }) =>
               )}
             </button>
           </form>
+        </section>
+
+        {/* 회원탈퇴 섹션 */}
+        <section className={`rounded-2xl border p-6 shadow-md transition-all ${
+          darkMode ? 'bg-neutral-900 border-rose-900/40' : 'bg-white border-rose-200'
+        }`}>
+          <h2 className="text-base font-bold mb-2 flex items-center gap-2 text-rose-500">
+            <Trash2 className="w-5 h-5" />
+            <span>회원 탈퇴</span>
+          </h2>
+          <p className={`text-xs mb-4 leading-relaxed ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+            계정을 삭제하면 모든 대화 내역, 설정, 맞춤 지침이 <strong className="text-rose-500">영구적으로 삭제</strong>되며 복구할 수 없습니다.
+            {user?.is_admin && (
+              <span className="block mt-1 text-amber-500 font-semibold">⚠ 관리자 계정은 탈퇴할 수 없습니다.</span>
+            )}
+          </p>
+
+          {!showDeleteConfirm ? (
+            <button
+              onClick={() => { setShowDeleteConfirm(true); setDeleteError(''); setDeleteConfirmText(''); }}
+              disabled={user?.is_admin}
+              className="px-4 py-2 rounded-xl border border-rose-500/40 text-rose-500 text-sm font-semibold hover:bg-rose-500/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            >
+              회원 탈퇴 진행
+            </button>
+          ) : (
+            <div className="space-y-3">
+              <p className={`text-xs font-medium ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                탈퇴를 확인하려면 아래 입력란에 <strong className="text-rose-500">"{CONFIRM_KEYWORD}"</strong>를 입력하세요.
+              </p>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => { setDeleteConfirmText(e.target.value); setDeleteError(''); }}
+                placeholder={`"${CONFIRM_KEYWORD}" 입력`}
+                className={`w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:border-rose-500 transition-colors ${
+                  darkMode
+                    ? 'bg-slate-800 border-slate-700/60 text-slate-100 placeholder-slate-500'
+                    : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400'
+                }`}
+              />
+              {deleteError && (
+                <div className="flex items-center gap-2 text-rose-500 text-xs">
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>{deleteError}</span>
+                </div>
+              )}
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={isDeleting || deleteConfirmText !== CONFIRM_KEYWORD}
+                  className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors cursor-pointer flex items-center justify-center gap-2"
+                >
+                  {isDeleting ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      <span>영구 삭제</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(''); setDeleteError(''); }}
+                  disabled={isDeleting}
+                  className={`px-4 py-2.5 rounded-xl border text-sm font-semibold transition-colors cursor-pointer ${
+                    darkMode
+                      ? 'border-slate-700 text-slate-300 hover:bg-slate-800'
+                      : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  취소
+                </button>
+              </div>
+            </div>
+          )}
         </section>
 
       </main>
