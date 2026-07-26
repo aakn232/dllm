@@ -127,7 +127,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   const [editTemperature, setEditTemperature] = useState<string>('0.7');
   const [editTopP, setEditTopP] = useState<string>('0.9');
   const [editDarkMode, setEditDarkMode] = useState<boolean>(true);
-  const [editEnableThinking, setEditEnableThinking] = useState<boolean>(false);
   const [editLanguage, setEditLanguage] = useState<string>('ko');
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [settingsSaveMsg, setSettingsSaveMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -295,7 +294,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
         setEditTemperature(String(data.settings.temperature));
         setEditTopP(String(data.settings.top_p));
         setEditDarkMode(data.settings.dark_mode);
-        setEditEnableThinking(data.settings.enable_thinking);
         setEditLanguage(data.settings.language);
       }
       if (data.custom_instruction) {
@@ -393,7 +391,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           dark_mode: editDarkMode,
-          enable_thinking: editEnableThinking,
           temperature: tempVal,
           top_p: topPVal,
           language: editLanguage,
@@ -914,7 +911,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                               setEditTemperature(String(userDetail.settings.temperature));
                               setEditTopP(String(userDetail.settings.top_p));
                               setEditDarkMode(userDetail.settings.dark_mode);
-                              setEditEnableThinking(userDetail.settings.enable_thinking);
                               setEditLanguage(userDetail.settings.language);
                             }
                           }}
@@ -958,10 +954,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                           <div className="p-2 bg-black/20 rounded-lg">
                             <span className="text-slate-500 text-[10px] block">다크 모드</span>
                             <span className="font-bold text-indigo-400">{userDetail.settings.dark_mode ? 'ON' : 'OFF'}</span>
-                          </div>
-                          <div className="p-2 bg-black/20 rounded-lg">
-                            <span className="text-slate-500 text-[10px] block">생각 기능(Thinking)</span>
-                            <span className="font-bold text-indigo-400">{userDetail.settings.enable_thinking ? '활성화' : '비활성화'}</span>
                           </div>
                           <div className="p-2 bg-black/20 rounded-lg">
                             <span className="text-slate-500 text-[10px] block">언어 (Language)</span>
@@ -1032,15 +1024,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                               className="w-4 h-4 accent-indigo-500"
                             />
                             <span className="text-slate-300 text-[11px] font-semibold">다크 모드 활성화</span>
-                          </label>
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={editEnableThinking}
-                              onChange={(e) => setEditEnableThinking(e.target.checked)}
-                              className="w-4 h-4 accent-indigo-500"
-                            />
-                            <span className="text-slate-300 text-[11px] font-semibold">Thinking 기능 활성화</span>
                           </label>
                         </div>
                       </div>
