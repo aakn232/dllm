@@ -107,21 +107,19 @@ export const ThinkingBlock: React.FC<ThinkingBlockProps> = ({
         </div>
       </button>
 
-      {/* 펼쳤을 때 순차 출력 (Reasoning -> Thinking) */}
+      {/* 펼쳓을 때 순서 출력 (Reasoning -> Thinking) */}
       {isOpen && (
         <div className="relative px-4 py-3 border-t border-slate-200/60 dark:border-slate-800/80 bg-white/60 dark:bg-slate-950/40 space-y-4">
           <div className="absolute left-3 top-3 bottom-3 w-0.5 rounded-full bg-purple-500/40 dark:bg-purple-400/30" />
 
-          {/* Reasoning 세션 */}
+          {/* Reasoning 세션 — 하나만 있어도 언제나 태그 표시 */}
           {hasReasoning && (
             <div className="pl-3.5">
-              {hasThinking && (
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
-                    [Reasoning]
-                  </span>
-                </div>
-              )}
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
+                  [Reasoning]
+                </span>
+              </div>
               <div className="text-slate-600 dark:text-slate-300 font-mono text-[11.5px] leading-relaxed whitespace-pre-wrap select-text break-words">
                 {actualReasoning}
               </div>
@@ -133,16 +131,14 @@ export const ThinkingBlock: React.FC<ThinkingBlockProps> = ({
             <div className="pl-3.5 pr-1 my-2 border-b border-slate-200/70 dark:border-slate-800/60" />
           )}
 
-          {/* Thinking 세션 */}
+          {/* Thinking 세션 — 하나만 있어도 언제나 태그 표시 */}
           {hasThinking && (
             <div className="pl-3.5">
-              {hasReasoning && (
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-purple-100 text-purple-700 dark:bg-purple-950/80 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
-                    [Thinking]
-                  </span>
-                </div>
-              )}
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-100 text-purple-700 dark:bg-purple-950/80 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
+                  [Thinking]
+                </span>
+              </div>
               <div className="text-slate-600 dark:text-slate-300 font-mono text-[11.5px] leading-relaxed whitespace-pre-wrap select-text break-words">
                 {actualThinking}
               </div>
@@ -153,5 +149,4 @@ export const ThinkingBlock: React.FC<ThinkingBlockProps> = ({
     </div>
   );
 };
-
 
