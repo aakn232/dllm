@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -14,7 +14,11 @@ from backend.schemas import (
     AdminChatMessageView,
     AdminPasswordResetRequest,
     SystemSettingsSchema,
-    SystemSettingsUpdate
+    SystemSettingsUpdate,
+    UserSettingsSchema,
+    UserSettingsUpdate,
+    CustomInstructionSchema,
+    CustomInstructionUpdate,
 )
 from backend.dependencies import get_current_admin
 from backend.routers.auth import get_password_hash
@@ -241,6 +245,77 @@ def update_user_limit(
         "daily_request_limit": limit.daily_request_limit,
         "remaining_tokens": remaining_tokens
     }
+
+@router.patch("/users/{user_id}/settings", response_model=UserSettingsSchema)
+def admin_update_user_settings(
+    user_id: str,
+    payload: UserSettingsUpdate,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """관리자가 특정 유저의 AI 모델 파라미터 및 환경 설정(UserSettings)을 수정합니다."""
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+
+    settings = db.query(UserSettings).filter(UserSettings.user_id == user_id).first()
+    if not settings:
+        settings = UserSettings(
+            user_id=user_id,
+            dark_mode=True,
+            enable_thinking=False,
+            temperature=0.7,
+            top_p=0.9,
+            language="ko"
+        )
+        db.add(settings)
+
+    if payload.dark_mode is not None:
+        settings.dark_mode = payload.dark_mode
+    if payload.enable_thinking is not None:
+        settings.enable_thinking = payload.enable_thinking
+    if payload.temperature is not None:
+        settings.temperature = payload.temperature
+    if payload.top_p is not None:
+        settings.top_p = payload.top_p
+    if payload.language is not None:
+        settings.language = payload.language
+
+    settings.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(settings)
+    return settings
+
+@router.patch("/users/{user_id}/custom-instructions", response_model=CustomInstructionSchema)
+def admin_update_custom_instructions(
+    user_id: str,
+    payload: CustomInstructionUpdate,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """관리자가 특정 유저의 커스텀 지침 프로필(CustomInstruction)을 수정합니다."""
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+
+    instruction = db.query(CustomInstruction).filter(CustomInstruction.user_id == user_id).first()
+    if not instruction:
+        instruction = CustomInstruction(
+            user_id=user_id,
+            user_profile="",
+            response_style="",
+            is_enabled=True,
+            updated_at=datetime.now(timezone.utc)
+        )
+        db.add(instruction)
+
+    instruction.user_profile = payload.user_profile
+    instruction.response_style = payload.response_style
+    instruction.is_enabled = payload.is_enabled
+    instruction.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(instruction)
+    return instruction
 
 @router.put("/users/{user_id}/activate", response_model=UserResponse)
 def toggle_user_activation(
