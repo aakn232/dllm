@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { ChatMessage } from '../types/chat';
 import { ThinkingBlock } from './ThinkingBlock';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { useSmoothStreaming } from '../hooks/useSmoothStreaming';
 import { useChatStore } from '../store/useChatStore';
-import { Bot, User, RefreshCw, Edit2, Check, X, Gauge, Trash2 } from 'lucide-react';
+import { useAuthStore } from '../store/useAuthStore';
+import { Bot, User, RefreshCw, Edit2, Check, X, Gauge, Trash2, Code, Copy, CheckCheck } from 'lucide-react';
 
 interface ChatMessageItemProps {
   message: ChatMessage;
@@ -12,8 +14,28 @@ interface ChatMessageItemProps {
 
 export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message }) => {
   const { isGenerating, regenerateMessage, editAndResendMessage, deleteMessagePair, darkMode, tps } = useChatStore();
+  const { user } = useAuthStore();
+  const isAdmin = !!user?.is_admin;
+
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
+  const [showJsonModal, setShowJsonModal] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // 모달 활성화 시 배경(#root)에 inert 속성을 부여하여 브라우저 Ctrl+F 검색 대상에서 배경 제외
+  useEffect(() => {
+    if (showJsonModal) {
+      const rootEl = document.getElementById('root');
+      if (rootEl) {
+        rootEl.setAttribute('inert', '');
+      }
+      return () => {
+        if (rootEl) {
+          rootEl.removeAttribute('inert');
+        }
+      };
+    }
+  }, [showJsonModal]);
 
   const smoothText = useSmoothStreaming(
     message.content,
@@ -31,6 +53,12 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message }) => 
     if (window.confirm("이 대화(질문 및 답변 세트)를 삭제하시겠습니까?")) {
       deleteMessagePair(message.id);
     }
+  };
+
+  const handleCopyJson = () => {
+    navigator.clipboard.writeText(JSON.stringify(message, null, 2));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleEditKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -72,6 +100,22 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message }) => 
         }`}>
           <span>{isUser ? '사용자' : 'DiffusionGemma AI'}</span>
           <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* 관리자 전용 Raw JSON 보기 버튼 */}
+            {isAdmin && (
+              <button
+                onClick={() => setShowJsonModal(true)}
+                className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+                  darkMode
+                    ? 'text-slate-400 hover:text-indigo-400 hover:bg-slate-800'
+                    : 'text-slate-500 hover:text-indigo-600 hover:bg-slate-200'
+                }`}
+                title="원본 JSON 보기 (관리자 전용)"
+              >
+                <Code className="w-3.5 h-3.5" />
+                <span className="font-mono text-[10px]">JSON</span>
+              </button>
+            )}
+
             {isUser && !isGenerating && (
               <>
                 <button
@@ -186,6 +230,58 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message }) => 
           </>
         )}
       </div>
+
+      {/* 관리자 전용 원본 JSON 모달 (Portal로 body에 렌더링 + root에 inert 부여하여 Ctrl+F 배경 탐색 제외) */}
+      {showJsonModal && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn" onClick={() => setShowJsonModal(false)}>
+          <div className={`relative w-full max-w-2xl max-h-[85vh] rounded-xl shadow-2xl flex flex-col overflow-hidden border ${
+            darkMode ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
+          }`} onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className={`flex items-center justify-between px-5 py-4 border-b ${
+              darkMode ? 'border-slate-800 bg-slate-900/80' : 'border-slate-100 bg-slate-50'
+            }`}>
+              <div className="flex items-center gap-2">
+                <Code className="w-5 h-5 text-indigo-500" />
+                <h3 className="font-semibold text-sm sm:text-base">메시지 원본 JSON <span className="text-xs font-normal text-indigo-400 ml-1">(관리자 전용)</span></h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleCopyJson}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                    copied
+                      ? 'bg-emerald-600 text-white'
+                      : darkMode
+                        ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                  }`}
+                >
+                  {copied ? <CheckCheck className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copied ? '복사됨' : 'JSON 복사'}
+                </button>
+                <button
+                  onClick={() => setShowJsonModal(false)}
+                  className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                    darkMode ? 'hover:bg-slate-800 text-slate-400 hover:text-slate-100' : 'hover:bg-slate-200 text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 overflow-y-auto flex-1 font-mono text-xs leading-relaxed">
+              <pre className={`p-4 rounded-lg whitespace-pre-wrap break-words break-all selection:bg-indigo-500 selection:text-white ${
+                darkMode ? 'bg-slate-950 text-indigo-300 border border-slate-800' : 'bg-slate-900 text-indigo-300'
+              }`}>
+                {JSON.stringify(message, null, 2)}
+              </pre>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
