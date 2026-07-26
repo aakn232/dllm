@@ -27,6 +27,7 @@ interface AuthState {
   loadUserSettings: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   checkUsernameAvailability: (username: string) => Promise<{ is_available: boolean; message: string }>;
+  deleteAccount: () => Promise<void>;
 }
 
 function handleFetchError(err: any): never {
@@ -141,7 +142,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
     } catch (err) {
       console.error('인증 확인 오류:', err);
-      // 오프라인 상태일 수 있으므로 일단 보존하되 세부 에러가 401일 때만 로그아웃할 수도 있으나 안전을 위해 유지
     } finally {
       set({ isLoading: false });
     }
@@ -160,7 +160,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       if (res.ok) {
         const settings = await res.json();
-        // 씽킹 모드 로그인/세션 로드시 항상 OFF로 초기화 (요구사항)
+        // 썘킹 모드 로그인/세션 로드시 항상 OFF로 초기화 (요구사항)
         useChatStore.getState().setEnableThinking(false);
         
         // 다크모드 설정 동기화
@@ -192,7 +192,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => null);
-        throw new Error(extractErrorMessage(errorData, '비밀번호 변경에 실패했습니다.'));
+        throw new Error(extractErrorMessage(errorData, '비밀번호 변경엔 실패했습니다.'));
       }
     } catch (err) {
       handleFetchError(err);
@@ -204,12 +204,37 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const res = await fetch(`${API_BASE}/auth/check-username?username=${encodeURIComponent(username)}`);
       if (!res.ok) {
         const errorData = await res.json().catch(() => null);
-        throw new Error(extractErrorMessage(errorData, '아이디 중복 확인에 실패했습니다.'));
+        throw new Error(extractErrorMessage(errorData, '아이디 중복 확인엔 실패했습니다.'));
       }
       return await res.json();
     } catch (err) {
       handleFetchError(err);
     }
   },
-}));
 
+  deleteAccount: async () => {
+    const { token } = get();
+    if (!token) throw new Error('인증 토큰이 없습니다. 다시 로그인해 주세요.');
+
+    try {
+      const res = await fetch(`${API_BASE}/auth/me`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        throw new Error(extractErrorMessage(errorData, '계정 삭제엔 실패했습니다.'));
+      }
+
+      // 로컬 스토리지 정리 및 상태 초기화
+      localStorage.removeItem('token');
+      set({ token: null, user: null, isAuthenticated: false });
+      useChatStore.getState().goHome();
+    } catch (err) {
+      handleFetchError(err);
+    }
+  },
+}));
