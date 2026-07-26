@@ -453,6 +453,11 @@ async def chat_completions(
 
     return StreamingResponse(
         stream_nvidia_response(response, req.enable_thinking, req.session_id, user_id=current_user.id),
-        media_type="text/event-stream"
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
     )
 
