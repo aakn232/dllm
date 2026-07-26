@@ -21,6 +21,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message }) => 
   const [editContent, setEditContent] = useState(message.content);
   const [showJsonModal, setShowJsonModal] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [msgCopied, setMsgCopied] = useState(false);
 
   // 모달 활성화 시 배경(#root)에 inert 속성을 부여하여 브라우저 Ctrl+F 검색 대상에서 배경 제외
   useEffect(() => {
@@ -45,7 +46,6 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message }) => 
   const handleEditSubmit = () => {
     if (!editContent.trim()) return;
     setIsEditing(false);
-    // 메시지 수정 및 이전 시점으로 롤백/트렁케이트(Truncate) 후 재생성 호출
     editAndResendMessage(message.id, editContent, message.attachments);
   };
 
@@ -71,6 +71,14 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message }) => 
     navigator.clipboard.writeText(getJsonString());
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  // 메시지 복사 (사용자: 원래 입력 텍스트, AI: 렌더링된 smoothText)
+  const handleCopyMessage = () => {
+    const textToCopy = isUser ? message.content : smoothText;
+    navigator.clipboard.writeText(textToCopy);
+    setMsgCopied(true);
+    setTimeout(() => setMsgCopied(false), 2000);
   };
 
   const handleEditKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -130,6 +138,18 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message }) => 
 
             {isUser && !isGenerating && (
               <>
+                {/* 메시지 복사 버튼 (사용자) */}
+                <button
+                  onClick={handleCopyMessage}
+                  className={`p-1 transition-colors cursor-pointer ${
+                    msgCopied
+                      ? 'text-emerald-500'
+                      : (darkMode ? 'text-slate-500 hover:text-slate-200' : 'text-slate-400 hover:text-slate-900')
+                  }`}
+                  title="메시지 복사"
+                >
+                  {msgCopied ? <CheckCheck className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
                 <button
                   onClick={() => setIsEditing(!isEditing)}
                   className={`p-1 transition-colors cursor-pointer ${darkMode ? 'hover:text-slate-200' : 'hover:text-slate-900 text-slate-500'}`}
@@ -165,6 +185,24 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message }) => 
                   </div>
                 ) : null}
 
+                {/* 메시지 복사 버튼 (AI 답변) */}
+                {!message.isStreaming && message.content && (
+                  <button
+                    onClick={handleCopyMessage}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+                      msgCopied
+                        ? 'text-emerald-500'
+                        : (darkMode
+                          ? 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/80'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/80')
+                    }`}
+                    title="답변 복사"
+                  >
+                    {msgCopied ? <CheckCheck className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span className="hidden xs:inline">{msgCopied ? '복사됨' : '복사'}</span>
+                  </button>
+                )}
+
                 {!isGenerating && (
                   <button
                     onClick={() => regenerateMessage(message.id)}
@@ -188,12 +226,21 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message }) => 
         {message.attachments && message.attachments.length > 0 && (
           <div className="flex flex-wrap gap-2 pt-1">
             {message.attachments.map((att, idx) => (
-              <img
-                key={idx}
-                src={att.file_url}
-                alt="첨부 이미지"
-                className="max-w-xs max-h-48 rounded-lg border border-slate-300 dark:border-slate-700 object-cover shadow"
-              />
+              att.file_type.startsWith('video/') ? (
+                <video
+                  key={idx}
+                  src={att.file_url}
+                  controls
+                  className="max-w-xs max-h-48 rounded-lg border border-slate-300 dark:border-slate-700 shadow"
+                />
+              ) : (
+                <img
+                  key={idx}
+                  src={att.file_url}
+                  alt="첨부 이미지"
+                  className="max-w-xs max-h-48 rounded-lg border border-slate-300 dark:border-slate-700 object-cover shadow"
+                />
+              )
             ))}
           </div>
         )}
