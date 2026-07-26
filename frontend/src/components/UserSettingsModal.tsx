@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useChatStore } from '../store/useChatStore';
-import { X, User, Calendar, KeyRound, Lock, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { X, User, Calendar, KeyRound, Lock, AlertCircle, CheckCircle2, Trash2 } from 'lucide-react';
 
 interface UserSettingsModalProps {
   isOpen: boolean;
@@ -9,7 +9,7 @@ interface UserSettingsModalProps {
 }
 
 export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, onClose }) => {
-  const { user, changePassword } = useAuthStore();
+  const { user, changePassword, deleteAccount } = useAuthStore();
   const { darkMode } = useChatStore();
 
   const [currentPassword, setCurrentPassword] = useState('');
@@ -19,6 +19,13 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, on
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // 회원탈퇴 상태
+  const [showDeleteSection, setShowDeleteSection] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const CONFIRM_KEYWORD = '탈퇴합니다';
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -63,6 +70,22 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, on
       setErrorMsg(err.message || '비밀번호 변경 중 오류가 발생했습니다.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== CONFIRM_KEYWORD) {
+      setDeleteError(`"${CONFIRM_KEYWORD}"를 정확히 입력해 주세요.`);
+      return;
+    }
+    setDeleteError('');
+    setIsDeleting(true);
+    try {
+      await deleteAccount();
+      onClose();
+    } catch (err: any) {
+      setDeleteError(err.message || '계정 삭제 중 오류가 발생했습니다.');
+      setIsDeleting(false);
     }
   };
 
@@ -232,6 +255,82 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ isOpen, on
                 )}
               </button>
             </form>
+          </section>
+
+          {/* 회원탈퇴 섹션 */}
+          <section className={`rounded-xl border p-4 transition-all ${
+            darkMode ? 'bg-neutral-800/40 border-rose-900/40' : 'bg-rose-50/50 border-rose-200'
+          }`}>
+            <h3 className="text-xs font-bold mb-2 uppercase tracking-wider text-rose-500 flex items-center gap-1.5">
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>회원 탈퇴</span>
+            </h3>
+            <p className={`text-[11px] mb-3 leading-relaxed ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              계정 삭제 시 모든 대화 내역, 설정, 맞춤 지침이 <strong className="text-rose-500">영구적으로 삭제</strong>되며 복구할 수 없습니다.
+              {user?.is_admin && (
+                <span className="block mt-1 text-amber-500 font-semibold">⚠ 관리자 계정은 탈퇴할 수 없습니다.</span>
+              )}
+            </p>
+
+            {!showDeleteSection ? (
+              <button
+                onClick={() => { setShowDeleteSection(true); setDeleteError(''); setDeleteConfirmText(''); }}
+                disabled={user?.is_admin}
+                className="px-3 py-1.5 rounded-lg border border-rose-500/40 text-rose-500 text-xs font-semibold hover:bg-rose-500/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              >
+                회원 탈퇴 진행
+              </button>
+            ) : (
+              <div className="space-y-2.5">
+                <p className={`text-[11px] font-medium ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                  탈퇴를 확인하려면 아래 입력란에 <strong className="text-rose-500">"{CONFIRM_KEYWORD}"</strong>를 입력하세요.
+                </p>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => { setDeleteConfirmText(e.target.value); setDeleteError(''); }}
+                  placeholder={`"${CONFIRM_KEYWORD}" 입력`}
+                  className={`w-full px-3 py-2 rounded-xl border text-xs focus:outline-none focus:border-rose-500 transition-colors ${
+                    darkMode
+                      ? 'bg-slate-800 border-slate-700/60 text-slate-100 placeholder-slate-500'
+                      : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                  }`}
+                />
+                {deleteError && (
+                  <div className="flex items-center gap-1.5 text-rose-500 text-[11px]">
+                    <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                    <span>{deleteError}</span>
+                  </div>
+                )}
+                <div className="flex gap-2 pt-0.5">
+                  <button
+                    onClick={handleDeleteAccount}
+                    disabled={isDeleting || deleteConfirmText !== CONFIRM_KEYWORD}
+                    className="flex-1 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    {isDeleting ? (
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>영구 삭제</span>
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => { setShowDeleteSection(false); setDeleteConfirmText(''); setDeleteError(''); }}
+                    disabled={isDeleting}
+                    className={`px-3 py-2 rounded-xl border text-xs font-semibold transition-colors cursor-pointer ${
+                      darkMode
+                        ? 'border-slate-700 text-slate-300 hover:bg-slate-800'
+                        : 'border-slate-300 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    취소
+                  </button>
+                </div>
+              </div>
+            )}
           </section>
         </div>
 
