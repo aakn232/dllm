@@ -5,7 +5,7 @@ import { authFetch } from '../utils/apiClient';
 import { API_V1_BASE } from '../config';
 import { 
   ShieldAlert, CheckCircle, XCircle, Settings, UserX, 
-  UserCheck, RefreshCw, Sliders, X, ArrowLeft,
+  UserCheck, RefreshCw, X, ArrowLeft,
   MessageSquare, Key, FileText,
   User, Lock, Cpu, Check, Copy, Gauge, Trash2
 } from 'lucide-react';
@@ -87,7 +87,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   const [errorMsg, setErrorMsg] = useState('');
 
   // 현재 열려있는 모달 관리
-  const [activeModal, setActiveModal] = useState<'none' | 'conversations' | 'details' | 'password' | 'limit' | 'delete'>('none');
+  const [activeModal, setActiveModal] = useState<'none' | 'conversations' | 'details' | 'password' | 'delete'>('none');
   const [targetUser, setTargetUser] = useState<UserAdminView | null>(null);
 
   // 1. 대화 내역 모달 상태
@@ -106,11 +106,12 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   const [newPassword, setNewPassword] = useState('');
   const [isResettingPassword, setIsResettingPassword] = useState(false);
 
-  // 4. 한도 설정 모달 상태
+  // 4. 한도 설정 상태 (설정값 모달 내 통합)
   const [limitMode, setLimitMode] = useState('both');
   const [tokenLimit, setTokenLimit] = useState<string>('');
   const [requestLimit, setRequestLimit] = useState<string>('');
   const [isSavingLimit, setIsSavingLimit] = useState(false);
+  const [limitSaveMsg, setLimitSaveMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // 5. 시스템 전역 설정 상태
   const [systemSettings, setSystemSettings] = useState<SystemSettingsData | null>(null);
@@ -162,7 +163,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
     try {
       const sanitized = expr.trim();
       if (!sanitized) return null;
-      // 보안을 위한 사칙연산 및 숫자 패턴 허용 검사
       if (!/^[0-9+\-*/().\s]+$/.test(sanitized)) return null;
       const evalResult = Function(`"use strict"; return (${sanitized})`)();
       if (typeof evalResult === 'number' && !isNaN(evalResult) && isFinite(evalResult) && evalResult > 0) {
@@ -283,6 +283,11 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
     setUserDetail(null);
     setIsDetailLoading(true);
     setCopiedHash(false);
+    setLimitSaveMsg(null);
+    // 한도 설정값 초기화
+    setLimitMode(user.limit_mode);
+    setTokenLimit(user.daily_token_limit !== null ? String(user.daily_token_limit) : '');
+    setRequestLimit(user.daily_request_limit !== null ? String(user.daily_request_limit) : '');
 
     try {
       const res = await authFetch(`${API_V1_BASE}/admin/users/${user.id}/details`);
@@ -301,7 +306,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
     setActiveModal('password');
     setNewPassword('');
     setUserDetail(null);
-    // 해시 확인을 위해 정보 가져오기
     authFetch(`${API_V1_BASE}/admin/users/${user.id}/details`)
       .then(res => res.json())
       .then(data => setUserDetail(data))
@@ -334,17 +338,10 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
     }
   };
 
-  const handleOpenLimitModal = (user: UserAdminView) => {
-    setTargetUser(user);
-    setActiveModal('limit');
-    setLimitMode(user.limit_mode);
-    setTokenLimit(user.daily_token_limit !== null ? String(user.daily_token_limit) : '');
-    setRequestLimit(user.daily_request_limit !== null ? String(user.daily_request_limit) : '');
-  };
-
   const handleSaveLimit = async () => {
     if (!targetUser) return;
     setIsSavingLimit(true);
+    setLimitSaveMsg(null);
     
     const payload = {
       limit_mode: limitMode,
@@ -363,9 +360,10 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
 
       const updatedUser = await res.json();
       setUsers(prev => prev.map(u => u.id === targetUser.id ? updatedUser : u));
-      setActiveModal('none');
+      setTargetUser(updatedUser);
+      setLimitSaveMsg({ type: 'success', text: '일일 한도가 성공적으로 저장되었습니다.' });
     } catch (err: any) {
-      alert(err.message);
+      setLimitSaveMsg({ type: 'error', text: err.message || '저장 중 오류가 발생했습니다.' });
     } finally {
       setIsSavingLimit(false);
     }
@@ -393,7 +391,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
       }
 
       const data = await res.json();
-      // 목록에서 즉시 제거
       setUsers(prev => prev.filter(u => u.id !== targetUser.id));
       setActiveModal('none');
       alert(data.message || '사용자가 삭제되었습니다.');
@@ -607,13 +604,13 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                           <span>대화 내역</span>
                         </button>
 
-                        {/* 2. 유저 설정/프로필 확인 버튼 */}
+                        {/* 2. 유저 설정/프로필 확인 버튼 (일일한도설정 포함) */}
                         <button
                           onClick={() => handleOpenDetailsModal(u)}
                           className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer ${
                             darkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-200' : 'bg-slate-100 border-slate-300 hover:bg-slate-200 text-slate-700 shadow-sm'
                           }`}
-                          title="설정값 & 프로필 데이터 확인"
+                          title="설정값 & 프로필 데이터 확인 (일일한도설정 포함)"
                         >
                           <Settings className="w-3.5 h-3.5" />
                           <span>설정값</span>
@@ -631,18 +628,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                           <span>비밀번호</span>
                         </button>
 
-                        {/* 4. 한도 설정 버튼 */}
-                        <button
-                          onClick={() => handleOpenLimitModal(u)}
-                          className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
-                            darkMode ? 'bg-neutral-800 border-neutral-700 hover:bg-slate-700 text-slate-300' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700 shadow-sm'
-                          }`}
-                          title="일일 한도 설정"
-                        >
-                          <Sliders className="w-3.5 h-3.5" />
-                        </button>
-
-                        {/* 5. 활성/비활성 토글 */}
+                        {/* 4. 활성/비활성 토글 */}
                         {u.id !== currentUser?.id && (
                           <button
                             onClick={() => handleToggleActive(u.id)}
@@ -657,7 +643,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                           </button>
                         )}
 
-                        {/* 6. 사용자 삭제 버튼 (관리자 본인 및 다른 관리자 계정 제외) */}
+                        {/* 5. 사용자 삭제 버튼 (관리자 본인 및 다른 관리자 계정 제외) */}
                         {u.id !== currentUser?.id && !u.is_admin && (
                           <button
                             onClick={() => handleOpenDeleteModal(u)}
@@ -780,7 +766,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                             </div>
                           </div>
                           
-                          {/* 생각 과정 (Reasoning / Thinking) 단일 상자 내 탭 구분을 적용한 ThinkingBlock 표기 */}
                           {msg.role !== 'user' && (msg.reasoning_content || msg.thinking_content) && (
                             <ThinkingBlock
                               reasoningContent={msg.reasoning_content}
@@ -809,7 +794,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
         </div>
       )}
 
-      {/* ===================== 2. 유저 상세 셋팅 & 프로필 모달 ===================== */}
+      {/* ===================== 2. 유저 상세 셋팅 & 프로필 + 일일한도설정 통합 모달 ===================== */}
       {activeModal === 'details' && targetUser && (
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
@@ -817,7 +802,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className={`w-full max-w-2xl max-h-[85vh] rounded-2xl border flex flex-col shadow-2xl overflow-hidden transition-all ${
+            className={`w-full max-w-2xl max-h-[90vh] rounded-2xl border flex flex-col shadow-2xl overflow-hidden transition-all ${
               darkMode ? 'bg-neutral-900 border-neutral-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
             }`}
           >
@@ -920,6 +905,98 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                     )}
                   </div>
 
+                  {/* 일일 한도 설정 섹션 */}
+                  <div className="space-y-2">
+                    <h4 className="font-bold text-xs text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Settings className="w-3.5 h-3.5 text-indigo-400" /> 일일 한도 설정 (Daily Limit)
+                    </h4>
+                    <div className={`p-4 rounded-xl border space-y-4 ${
+                      darkMode ? 'bg-neutral-950/60 border-neutral-800' : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      {/* 제한 모드 선택 */}
+                      <div className="space-y-1.5">
+                        <label className="font-semibold text-slate-400">제한 기준 모드</label>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            { value: 'both', label: '둘 다 제한' },
+                            { value: 'token_only', label: '토큰만 제한' },
+                            { value: 'request_only', label: '요청만 제한' }
+                          ].map(tab => (
+                            <button
+                              key={tab.value}
+                              type="button"
+                              onClick={() => setLimitMode(tab.value)}
+                              className={`py-2 text-[10px] font-semibold border rounded-lg transition-colors cursor-pointer ${
+                                limitMode === tab.value
+                                  ? 'bg-indigo-600 border-indigo-600 text-white'
+                                  : (darkMode ? 'bg-neutral-800/50 border-neutral-700/60 text-slate-400 hover:text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-600 hover:bg-slate-200')
+                              }`}
+                            >
+                              {tab.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 토큰 한도 입력 */}
+                      {limitMode !== 'request_only' && (
+                        <div className="space-y-1">
+                          <label className="font-semibold text-slate-400">일일 토큰 한도 (숫자만 입력, 빈값 시 무제한)</label>
+                          <input
+                            type="number"
+                            placeholder="예: 100000"
+                            value={tokenLimit}
+                            onChange={(e) => setTokenLimit(e.target.value)}
+                            className={`w-full px-3.5 py-2.5 rounded-xl border text-xs focus:outline-none focus:border-indigo-500 transition-colors ${
+                              darkMode
+                                ? 'bg-slate-800 border-slate-700 text-slate-100'
+                                : 'bg-white border-slate-300 text-slate-900'
+                            }`}
+                          />
+                        </div>
+                      )}
+
+                      {/* 요청 한도 입력 */}
+                      {limitMode !== 'token_only' && (
+                        <div className="space-y-1">
+                          <label className="font-semibold text-slate-400">일일 요청 횟수 한도 (숫자만 입력, 빈값 시 무제한)</label>
+                          <input
+                            type="number"
+                            placeholder="예: 30"
+                            value={requestLimit}
+                            onChange={(e) => setRequestLimit(e.target.value)}
+                            className={`w-full px-3.5 py-2.5 rounded-xl border text-xs focus:outline-none focus:border-indigo-500 transition-colors ${
+                              darkMode
+                                ? 'bg-slate-800 border-slate-700 text-slate-100'
+                                : 'bg-white border-slate-300 text-slate-900'
+                            }`}
+                          />
+                        </div>
+                      )}
+
+                      {/* 저장 버튼 및 결과 메시지 */}
+                      <div className="flex items-center justify-between pt-1">
+                        {limitSaveMsg ? (
+                          <div className={`text-[11px] flex items-center gap-1.5 ${
+                            limitSaveMsg.type === 'success' ? 'text-emerald-400' : 'text-rose-400'
+                          }`}>
+                            {limitSaveMsg.type === 'success' ? <CheckCircle className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                            <span>{limitSaveMsg.text}</span>
+                          </div>
+                        ) : <span />}
+                        <button
+                          type="button"
+                          onClick={handleSaveLimit}
+                          disabled={isSavingLimit}
+                          className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+                        >
+                          {isSavingLimit && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                          <span>{isSavingLimit ? '저장 중...' : '한도 적용'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Custom Instruction 사용자 지침 정보 */}
                   <div className="space-y-2">
                     <h4 className="font-bold text-xs text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -979,7 +1056,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
             </div>
 
             <div className="space-y-4 text-xs">
-              {/* 비밀번호 보충 설명 안내 */}
               <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300 space-y-1.5">
                 <div className="font-bold flex items-center gap-1">
                   <Lock className="w-3.5 h-3.5" /> 보안 참고 안내
@@ -990,7 +1066,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                 </p>
               </div>
 
-              {/* 현재 DB에 저장된 해시값 */}
               {userDetail && (
                 <div className="space-y-1">
                   <label className="font-semibold text-slate-400">현재 DB 암호화 해시값</label>
@@ -1000,7 +1075,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                 </div>
               )}
 
-              {/* 새 비밀번호 입력 */}
               <div className="space-y-1">
                 <label className="font-semibold text-slate-300">새로 변경할 비밀번호 입력</label>
                 <input
@@ -1040,115 +1114,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
         </div>
       )}
 
-      {/* ===================== 4. 일일 한도 설정 모달 ===================== */}
-      {activeModal === 'limit' && targetUser && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-          onClick={() => setActiveModal('none')}
-        >
-          <div 
-            onClick={(e) => e.stopPropagation()}
-            className={`w-full max-w-md rounded-2xl border p-6 shadow-2xl transition-all ${
-              darkMode ? 'bg-neutral-900 border-neutral-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-4 border-b pb-3 border-slate-800/40">
-              <h3 className="font-bold text-sm flex items-center gap-2">
-                <Settings className="w-4 h-4 text-indigo-400" />
-                <span>[{targetUser.username}] 한도 설정</span>
-              </h3>
-              <button 
-                onClick={() => setActiveModal('none')}
-                className={`p-1 rounded hover:bg-slate-800 transition-colors ${darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600'}`}
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-4 text-xs">
-              <div className="space-y-1.5">
-                <label className="font-semibold text-slate-400">제한 기준 모드</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { value: 'both', label: '둘 다 제한' },
-                    { value: 'token_only', label: '토큰만 제한' },
-                    { value: 'request_only', label: '요청만 제한' }
-                  ].map(tab => (
-                    <button
-                      key={tab.value}
-                      type="button"
-                      onClick={() => setLimitMode(tab.value)}
-                      className={`py-2 text-[10px] font-semibold border rounded-lg transition-colors cursor-pointer ${
-                        limitMode === tab.value
-                          ? 'bg-indigo-600 border-indigo-600 text-white'
-                          : (darkMode ? 'bg-neutral-800/50 border-neutral-700/60 text-slate-400 hover:text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-600 hover:bg-slate-200')
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {limitMode !== 'request_only' && (
-                <div className="space-y-1">
-                  <label className="font-semibold text-slate-400">일일 토큰 한도 (숫자만 입력, 빈값 시 무제한)</label>
-                  <input
-                    type="number"
-                    placeholder="예: 100000"
-                    value={tokenLimit}
-                    onChange={(e) => setTokenLimit(e.target.value)}
-                    className={`w-full px-3.5 py-2.5 rounded-xl border text-xs focus:outline-none focus:border-indigo-500 transition-colors ${
-                      darkMode
-                        ? 'bg-slate-800 border-slate-700 text-slate-100'
-                        : 'bg-slate-50 border-slate-300 text-slate-900'
-                    }`}
-                  />
-                </div>
-              )}
-
-              {limitMode !== 'token_only' && (
-                <div className="space-y-1">
-                  <label className="font-semibold text-slate-400">일일 요청 횟수 한도 (숫자만 입력, 빈값 시 무제한)</label>
-                  <input
-                    type="number"
-                    placeholder="예: 30"
-                    value={requestLimit}
-                    onChange={(e) => setRequestLimit(e.target.value)}
-                    className={`w-full px-3.5 py-2.5 rounded-xl border text-xs focus:outline-none focus:border-indigo-500 transition-colors ${
-                      darkMode
-                        ? 'bg-slate-800 border-slate-700 text-slate-100'
-                        : 'bg-slate-50 border-slate-300 text-slate-900'
-                    }`}
-                  />
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-end gap-2.5 mt-6 pt-3 border-t border-slate-800/40">
-              <button
-                type="button"
-                onClick={() => setActiveModal('none')}
-                className={`px-4 py-2 rounded-lg border text-xs font-semibold hover:opacity-85 transition-opacity cursor-pointer ${
-                  darkMode ? 'bg-neutral-800 border-neutral-700 text-slate-300' : 'bg-slate-100 border-slate-300 text-slate-700 shadow-sm'
-                }`}
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveLimit}
-                disabled={isSavingLimit}
-                className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer"
-              >
-                {isSavingLimit ? '저장 중...' : '한도 적용'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ===================== 5. 사용자 삭제 확인 모달 ===================== */}
+      {/* ===================== 4. 사용자 삭제 확인 모달 ===================== */}
       {activeModal === 'delete' && targetUser && (
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
@@ -1175,7 +1141,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
             </div>
 
             <div className="space-y-4 text-xs">
-              {/* 경고 안내 박스 */}
               <div className="p-4 rounded-xl border border-red-500/30 bg-red-500/10 text-red-300 space-y-2">
                 <div className="font-bold flex items-center gap-1.5 text-red-400">
                   <ShieldAlert className="w-4 h-4" /> ⚠️ 되돌릴 수 없는 작업입니다
@@ -1186,7 +1151,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                 </p>
               </div>
 
-              {/* 삭제 대상 사용자 정보 */}
               <div className={`p-3.5 rounded-xl border ${
                 darkMode ? 'bg-neutral-800 border-neutral-700' : 'bg-slate-50 border-slate-200'
               }`}>
