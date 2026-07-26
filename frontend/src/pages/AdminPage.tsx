@@ -26,12 +26,17 @@ interface UserAdminView {
   remaining_tokens: number | null;
 }
 
+interface SystemSettingsData {
+  id: number;
+  max_tokens: number;
+  updated_at: string;
+}
+
 interface UserSettingsData {
   dark_mode: boolean;
   enable_thinking: boolean;
   temperature: number;
   top_p: number;
-  max_tokens: number;
   language: string;
   updated_at: string;
 }
@@ -104,6 +109,13 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   const [requestLimit, setRequestLimit] = useState<string>('');
   const [isSavingLimit, setIsSavingLimit] = useState(false);
 
+  // 5. 시스템 전역 설정 상태
+  const [systemSettings, setSystemSettings] = useState<SystemSettingsData | null>(null);
+  const [maxTokensInput, setMaxTokensInput] = useState<string>('8192');
+  const [isSystemSettingsLoading, setIsSystemSettingsLoading] = useState(false);
+  const [isSavingSystemSettings, setIsSavingSystemSettings] = useState(false);
+  const [systemSettingsMsg, setSystemSettingsMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   const { darkMode } = useChatStore();
   const { user: currentUser } = useAuthStore();
 
@@ -124,8 +136,77 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
     }
   };
 
+  const fetchSystemSettings = async () => {
+    setIsSystemSettingsLoading(true);
+    try {
+      const res = await authFetch(`${API_V1_BASE}/admin/system-settings`);
+      if (res.ok) {
+        const data: SystemSettingsData = await res.json();
+        setSystemSettings(data);
+        setMaxTokensInput(data.max_tokens.toString());
+      }
+    } catch (err) {
+      console.error('시스템 설정 조회 실패:', err);
+    } finally {
+      setIsSystemSettingsLoading(false);
+    }
+  };
+
+  const evaluateMathExpression = (expr: string): number | null => {
+    try {
+      const sanitized = expr.trim();
+      if (!sanitized) return null;
+      // 보안을 위한 사칙연산 및 숫자 패턴 허용 검사
+      if (!/^[0-9+\-*/().\s]+$/.test(sanitized)) return null;
+      const evalResult = Function(`"use strict"; return (${sanitized})`)();
+      if (typeof evalResult === 'number' && !isNaN(evalResult) && isFinite(evalResult) && evalResult > 0) {
+        return Math.floor(evalResult);
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const handleSaveSystemSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const calculatedTokens = evaluateMathExpression(maxTokensInput);
+    if (calculatedTokens === null || calculatedTokens < 1) {
+      setSystemSettingsMsg({ 
+        type: 'error', 
+        text: '올바른 수식이나 정수(1 이상)를 입력해주세요. (예: 8192*2, 4096+2048)' 
+      });
+      return;
+    }
+
+    setIsSavingSystemSettings(true);
+    setSystemSettingsMsg(null);
+    try {
+      const res = await authFetch(`${API_V1_BASE}/admin/system-settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ max_tokens: calculatedTokens }),
+      });
+      if (!res.ok) {
+        throw new Error('전역 설정 저장 실패');
+      }
+      const updated: SystemSettingsData = await res.json();
+      setSystemSettings(updated);
+      setMaxTokensInput(updated.max_tokens.toString());
+      setSystemSettingsMsg({ 
+        type: 'success', 
+        text: `시스템 전역 설정이 성공적으로 저장되었습니다. (${calculatedTokens.toLocaleString()} tokens)` 
+      });
+    } catch (err: any) {
+      setSystemSettingsMsg({ type: 'error', text: err.message || '저장 중 오류가 발생했습니다.' });
+    } finally {
+      setIsSavingSystemSettings(false);
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
+    fetchSystemSettings();
     const interval = setInterval(fetchUsers, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -327,6 +408,71 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
 
       {/* 어드민 본문 */}
       <div className="flex-1 overflow-auto p-6 max-w-7xl mx-auto w-full">
+        {/* 시스템 전역 설정 카드 */}
+        <div className={`mb-6 p-5 rounded-2xl border ${
+          darkMode ? 'bg-neutral-900 border-neutral-800 shadow-xl' : 'bg-white border-slate-200 shadow-sm'
+        }`}>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Settings className="w-4 h-4 text-emerald-400" />
+              <h3 className="text-sm font-bold">시스템 전역 설정 (System Settings)</h3>
+            </div>
+            {systemSettings && (
+              <span className="text-[11px] text-slate-500 font-mono">
+                최종 수정: {new Date(systemSettings.updated_at).toLocaleString()}
+              </span>
+            )}
+          </div>
+          
+          <form onSubmit={handleSaveSystemSettings} className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2.5">
+              <label className="text-xs text-slate-400 font-medium">최대 출력 토큰 수 (max_tokens):</label>
+              <div className="relative flex items-center gap-2">
+                <input
+                  type="text"
+                  value={maxTokensInput}
+                  onChange={(e) => setMaxTokensInput(e.target.value)}
+                  className={`w-44 px-3 py-1.5 text-xs font-mono rounded-lg border focus:outline-none transition-colors ${
+                    darkMode ? 'bg-neutral-800 border-neutral-700 text-emerald-400 focus:border-emerald-500' : 'bg-slate-50 border-slate-300 text-slate-800 focus:border-emerald-500'
+                  }`}
+                  placeholder="예: 8192*2 또는 16384"
+                  disabled={isSystemSettingsLoading || isSavingSystemSettings}
+                />
+                {(() => {
+                  const evalVal = evaluateMathExpression(maxTokensInput);
+                  if (evalVal !== null && maxTokensInput.match(/[+\-*/]/)) {
+                    return (
+                      <span className="px-2 py-0.5 text-[11px] font-mono font-bold rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                        = {evalVal.toLocaleString()}
+                      </span>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+              <span className="text-[11px] text-slate-500">사칙연산(예: 8192*2, 4096+2048) 입력이 가능합니다.</span>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSystemSettingsLoading || isSavingSystemSettings}
+              className="px-4 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+            >
+              {isSavingSystemSettings && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+              <span>설정 저장</span>
+            </button>
+          </form>
+
+          {systemSettingsMsg && (
+            <div className={`mt-3 text-xs flex items-center gap-1.5 ${
+              systemSettingsMsg.type === 'success' ? 'text-emerald-400' : 'text-rose-400'
+            }`}>
+              {systemSettingsMsg.type === 'success' ? <CheckCircle className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+              <span>{systemSettingsMsg.text}</span>
+            </div>
+          )}
+        </div>
+
         {errorMsg && (
           <div className="p-4 mb-4 rounded-xl border border-rose-500/20 bg-rose-500/10 text-rose-500 text-xs flex items-center gap-2.5">
             <ShieldAlert className="w-5 h-5" />
@@ -716,10 +862,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                         <div className="p-2 bg-black/20 rounded-lg">
                           <span className="text-slate-500 text-[10px] block">Top P</span>
                           <span className="font-mono font-bold text-emerald-400">{userDetail.settings.top_p}</span>
-                        </div>
-                        <div className="p-2 bg-black/20 rounded-lg">
-                          <span className="text-slate-500 text-[10px] block">Max Tokens</span>
-                          <span className="font-mono font-bold text-emerald-400">{userDetail.settings.max_tokens}</span>
                         </div>
                       </div>
                     ) : (

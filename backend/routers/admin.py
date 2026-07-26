@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from backend.database import get_db
-from backend.models import User, UserSettings, UsageLimit, UsageLog, CustomInstruction, ChatSession, ChatMessage
+from backend.models import User, UserSettings, SystemSettings, UsageLimit, UsageLog, CustomInstruction, ChatSession, ChatMessage
 from backend.schemas import (
     UserAdminView, 
     UsageLimitUpdate, 
@@ -12,7 +12,9 @@ from backend.schemas import (
     UserAdminDetailView,
     AdminChatSessionView,
     AdminChatMessageView,
-    AdminPasswordResetRequest
+    AdminPasswordResetRequest,
+    SystemSettingsSchema,
+    SystemSettingsUpdate
 )
 from backend.dependencies import get_current_admin
 from backend.routers.auth import get_password_hash
@@ -259,4 +261,36 @@ def toggle_user_activation(
     db.commit()
     db.refresh(target_user)
     return target_user
+
+@router.get("/system-settings", response_model=SystemSettingsSchema)
+def get_system_settings(
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    settings = db.query(SystemSettings).filter(SystemSettings.id == 1).first()
+    if not settings:
+        settings = SystemSettings(id=1, max_tokens=8192)
+        db.add(settings)
+        db.commit()
+        db.refresh(settings)
+    return settings
+
+@router.patch("/system-settings", response_model=SystemSettingsSchema)
+def update_system_settings(
+    settings_in: SystemSettingsUpdate,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    settings = db.query(SystemSettings).filter(SystemSettings.id == 1).first()
+    if not settings:
+        settings = SystemSettings(id=1, max_tokens=8192)
+        db.add(settings)
+
+    if settings_in.max_tokens is not None:
+        settings.max_tokens = settings_in.max_tokens
+
+    settings.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(settings)
+    return settings
 

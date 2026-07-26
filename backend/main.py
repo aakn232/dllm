@@ -3,10 +3,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.config import ENV, ALLOWED_ORIGINS
 from backend.routers import chat, sessions, status, custom_instructions, auth, settings, admin
-from backend.http_client import close_async_client
+from backend.database import engine, Base
+from backend.models import *  # Ensure all models are imported for metadata creation
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # DB 테이블 자동 생성 (없는 테이블이 있다면 안전하게 자동 생성)
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        print(f"Table creation warning: {e}")
     yield
     await close_async_client()
 

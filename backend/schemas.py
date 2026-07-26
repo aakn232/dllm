@@ -56,7 +56,7 @@ class ChatCompletionRequest(BaseModel):
     enable_thinking: bool = False
     temperature: Optional[float] = 0.7
     top_p: Optional[float] = 0.9
-    max_tokens: Optional[int] = 8192
+    max_tokens: Optional[int] = None
 
 # --- 신규 추가된 스키마 ---
 
@@ -87,7 +87,6 @@ class UserSettingsSchema(BaseModel):
     enable_thinking: bool = False
     temperature: float
     top_p: float
-    max_tokens: int
     language: str
     updated_at: datetime
 
@@ -99,8 +98,18 @@ class UserSettingsUpdate(BaseModel):
     enable_thinking: Optional[bool] = None
     temperature: Optional[float] = None
     top_p: Optional[float] = None
-    max_tokens: Optional[int] = None
     language: Optional[str] = None
+
+class SystemSettingsSchema(BaseModel):
+    id: int
+    max_tokens: int
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class SystemSettingsUpdate(BaseModel):
+    max_tokens: Optional[int] = Field(None, ge=1, le=128000)
 
 class UsageLimitUpdate(BaseModel):
     limit_mode: str  # "both" | "token_only" | "request_only"

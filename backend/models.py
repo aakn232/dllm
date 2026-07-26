@@ -31,11 +31,16 @@ class UserSettings(Base):
     enable_thinking = Column(Boolean, default=False, nullable=False)
     temperature = Column(Float, default=0.7, nullable=False)
     top_p = Column(Float, default=0.9, nullable=False)
-    max_tokens = Column(Integer, default=2048, nullable=False)
     language = Column(String(10), default="ko", nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = relationship("User", back_populates="settings")
+
+class SystemSettings(Base):
+    __tablename__ = "system_settings"
+    id = Column(Integer, primary_key=True, default=1)
+    max_tokens = Column(Integer, default=8192, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class UsageLimit(Base):
     __tablename__ = "usage_limits"

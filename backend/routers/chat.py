@@ -11,7 +11,7 @@ import httpx
 from copy import deepcopy
 from backend.config import NVIDIA_API_KEY, NVIDIA_API_URL, MODEL_NAME
 from backend.database import get_db, SessionLocal
-from backend.models import ChatSession, ChatMessage, MessageAttachment, CustomInstruction, User, UsageLimit, UsageLog
+from backend.models import ChatSession, ChatMessage, MessageAttachment, CustomInstruction, User, UsageLimit, UsageLog, SystemSettings
 from backend.schemas import ChatCompletionRequest
 from backend.dependencies import get_current_user
 from backend.http_client import get_async_client
@@ -356,6 +356,12 @@ async def chat_completions(
         ).first()
     instruction = await run_in_threadpool(_get_instruction)
 
+    # 3-1. 시스템 전역 설정 (max_tokens) 가져오기
+    def _get_system_settings():
+        return db.query(SystemSettings).filter(SystemSettings.id == 1).first()
+    sys_settings = await run_in_threadpool(_get_system_settings)
+    effective_max_tokens = req.max_tokens or (sys_settings.max_tokens if sys_settings else 8192)
+
     # Early DB Release Pattern: 파라미터 및 세션 검증이 모두 끝난 후 스트리밍 시작 전 DB 연결 즉시 반납
     db.close()
 
@@ -391,7 +397,7 @@ async def chat_completions(
         "messages": valid_messages,
         "temperature": req.temperature,
         "top_p": req.top_p,
-        "max_tokens": req.max_tokens,
+        "max_tokens": effective_max_tokens,
         "stream": True,
         "chat_template_kwargs": {
             "enable_thinking": req.enable_thinking
