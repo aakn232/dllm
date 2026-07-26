@@ -98,7 +98,7 @@ def test_stream_nvidia_response_reasoning_field():
     async def _run():
         mock_chunks = [
             {"choices": [{"delta": {"reasoning": "<|channel>thought* Step 1: Analyze problem."}}]},
-            {"choices": [{"delta": {"reasoning": " Step 2: Solve it."}}]},
+            {"choices": [{"delta": {"reasoning": "<channel|> Step 2: Solve it."}}]},
             {"choices": [{"delta": {"content": "Answer is 42."}}]}
         ]
         lines = [f"data: {json.dumps(chunk)}" for chunk in mock_chunks] + ["data: [DONE]"]
@@ -112,7 +112,7 @@ def test_stream_nvidia_response_reasoning_field():
                     events.append(json.loads(payload))
 
         content_events = [e for e in events if e.get("type") == "content"]
-        thinking_events = [e for e in events if e.get("type") in ("thinking", "thinking_stream")]
+        thinking_events = [e for e in events if e.get("type") in ("thinking", "thinking_stream", "reasoning_stream")]
 
         full_content = "".join([e["delta"] for e in content_events])
         full_thinking = "".join([e["delta"] for e in thinking_events])
@@ -120,6 +120,34 @@ def test_stream_nvidia_response_reasoning_field():
         assert full_content == "Answer is 42."
         assert "* Step 1: Analyze problem. Step 2: Solve it." in full_thinking
         assert "<|channel>" not in full_thinking
+        assert "<channel|>" not in full_thinking
 
     asyncio.run(_run())
+
+def test_stream_nvidia_response_channel_in_content_chunk():
+    async def _run():
+        mock_chunks = [
+            {"choices": [{"delta": {"content": "<channel|>안녕하세요! "}}]},
+            {"choices": [{"delta": {"content": "<|channel>thought 반가워요."}}]}
+        ]
+        lines = [f"data: {json.dumps(chunk)}" for chunk in mock_chunks] + ["data: [DONE]"]
+        mock_resp = MockResponse(lines)
+
+        events = []
+        async for event in stream_nvidia_response(mock_resp, enable_thinking=True):
+            if event.startswith("data: "):
+                payload = event[6:].strip()
+                if payload != "[DONE]":
+                    events.append(json.loads(payload))
+
+        content_events = [e for e in events if e.get("type") == "content"]
+        full_content = "".join([e["delta"] for e in content_events])
+
+        assert full_content == "안녕하세요!  반가워요."
+        assert "<channel|>" not in full_content
+        assert "<|channel>" not in full_content
+
+    asyncio.run(_run())
+
+
 

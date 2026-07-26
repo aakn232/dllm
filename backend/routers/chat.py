@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from datetime import date, datetime
 from typing import AsyncGenerator
 from fastapi import APIRouter, Request, HTTPException, Depends
@@ -20,6 +21,7 @@ router = APIRouter(prefix="/api/v1", tags=["chat"])
 logger = logging.getLogger("chat_proxy")
 
 MAX_CONTEXT_MESSAGES = 20  # 컨텍스트 관리: 최근 20개 메시지 유지 (슬라이딩 윈도우)
+CHANNEL_PATTERN = re.compile(r'<\|?channel\|?>(thought)?')
 
 def save_chat_completion_result(
     session_id: str | None,
@@ -40,12 +42,13 @@ def save_chat_completion_result(
     db = SessionLocal()
     try:
         if session_id and full_assistant_content.strip():
-            clean_thinking = full_thinking_content.strip() if full_thinking_content.strip() else None
-            clean_reasoning = full_reasoning_content.strip() if full_reasoning_content.strip() else None
+            clean_assistant = CHANNEL_PATTERN.sub("", full_assistant_content)
+            clean_thinking = CHANNEL_PATTERN.sub("", full_thinking_content).strip() if full_thinking_content.strip() else None
+            clean_reasoning = CHANNEL_PATTERN.sub("", full_reasoning_content).strip() if full_reasoning_content.strip() else None
             msg = ChatMessage(
                 session_id=session_id,
                 role="assistant",
-                content=full_assistant_content,
+                content=clean_assistant,
                 thinking_content=clean_thinking,
                 reasoning_content=clean_reasoning,
                 raw_response=raw_response_str
@@ -279,12 +282,17 @@ async def stream_nvidia_response(
 
                 # 1. NVIDIA NIM reasoning 필드 스트리밍 처리
                 if reasoning_chunk:
-                    # <|channel>thought 등의 특수 토큰 정돈
-                    clean_reasoning = reasoning_chunk.replace("<|channel>thought", "").replace("<|channel>", "")
+                    # <|channel>thought, <channel|>, <|channel|> 등 특수 토큰 정돈 (미리 컴파일된 정규식 사용)
+                    clean_reasoning = CHANNEL_PATTERN.sub("", reasoning_chunk)
                     if clean_reasoning:
                         full_reasoning_content += clean_reasoning
                         yield f"data: {json.dumps({'type': 'reasoning_stream', 'delta': clean_reasoning, 'source': 'Reasoning'})}\n\n"
 
+                if not content_chunk:
+                    continue
+
+                # content_chunk 내에 포함될 수 있는 <channel|>, <|channel>thought 등 특수 토큰 정돈
+                content_chunk = CHANNEL_PATTERN.sub("", content_chunk)
                 if not content_chunk:
                     continue
 
