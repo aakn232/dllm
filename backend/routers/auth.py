@@ -62,8 +62,7 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
             email=payload.email,
             hashed_password=hashed_pw,
             is_admin=is_admin,
-            is_active=True,
-            last_login_at=datetime.utcnow()
+            is_active=True
         )
         db.add(user)
 
@@ -130,11 +129,6 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             status_code=status.HTTP_403_FORBIDDEN,
             detail="비활성화된 사용자 계정입니다."
         )
-
-    # 최근 접속일 업데이트
-    user.last_login_at = datetime.utcnow()
-    db.commit()
-    db.refresh(user)
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
