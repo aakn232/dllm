@@ -7,10 +7,23 @@
 @layer base {
   body {
     @apply bg-slate-50 text-slate-900 dark:bg-black dark:text-white antialiased font-sans transition-colors duration-200;
+    /* iOS safe area */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* 모바일 탭 입력 시 텍스트 자동 확대 방지 */
+  input, textarea, select {
+    font-size: 16px;
+  }
+
+  /* 터치 기기 클릭 딜레이 제거 */
+  * {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar (데스크탑) */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -27,6 +40,24 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(156, 163, 175, 0.5);
+}
+
+/* 모바일에서 스크롤바 숨기기 */
+@media (max-width: 768px) {
+  ::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+}
+
+/* iOS 고정 하단 영역 대응 - bottom sheet 스타일 모달 */
+.mobile-sheet {
+  padding-bottom: max(env(safe-area-inset-bottom), 16px);
+}
+
+/* 모달 오버레이 */
+.modal-overlay {
+  overscroll-behavior: contain;
 }
 
 /* Shimmer Micro-Animation for Skeleton Loading */
@@ -61,4 +92,3 @@
   animation: shimmer 1.8s infinite;
   content: '';
 }
-
