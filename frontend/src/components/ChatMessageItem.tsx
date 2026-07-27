@@ -3,10 +3,11 @@ import { createPortal } from 'react-dom';
 import type { ChatMessage } from '../types/chat';
 import { ThinkingBlock } from './ThinkingBlock';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { ImageModal } from './ImageModal';
 import { useSmoothStreaming } from '../hooks/useSmoothStreaming';
 import { useChatStore } from '../store/useChatStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { Bot, User, RefreshCw, Edit2, Check, X, Gauge, Trash2, Code, Copy, CheckCheck } from 'lucide-react';
+import { Bot, User, RefreshCw, Edit2, Check, X, Gauge, Trash2, Code, Copy, CheckCheck, ZoomIn } from 'lucide-react';
 
 interface ChatMessageItemProps {
   message: ChatMessage;
@@ -22,6 +23,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message }) => 
   const [showJsonModal, setShowJsonModal] = useState(false);
   const [copied, setCopied] = useState(false);
   const [msgCopied, setMsgCopied] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   // 모달 활성화 시 배경(#root)에 inert 속성을 부여하여 브라우저 Ctrl+F 검색 대상에서 배경 제외
   useEffect(() => {
@@ -222,16 +224,25 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message }) => 
           </div>
         </div>
 
-        {/* 첨부 이미지 */}
+        {/* 첨부 이미지 - 클릭 시 모달 확대 */}
         {message.attachments && message.attachments.length > 0 && (
           <div className="flex flex-wrap gap-2 pt-1">
             {message.attachments.map((att, idx) => (
-              <img
-                key={idx}
-                src={att.file_url}
-                alt="첨부 이미지"
-                className="max-w-xs max-h-48 rounded-lg border border-slate-300 dark:border-slate-700 object-cover shadow"
-              />
+              <div key={idx} className="relative group/img">
+                <img
+                  src={att.file_url}
+                  alt="첨부 이미지"
+                  className="max-w-xs max-h-48 rounded-lg border border-slate-300 dark:border-slate-700 object-cover shadow cursor-zoom-in transition-opacity hover:opacity-90"
+                  onClick={() => setSelectedImage(att.file_url)}
+                  title="클릭하여 확대"
+                />
+                {/* 확대 아이콘 오버레이 힌트 */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity pointer-events-none rounded-lg">
+                  <div className="bg-black/40 rounded-full p-1.5">
+                    <ZoomIn className="w-4 h-4 text-white" />
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         )}
@@ -281,6 +292,15 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message }) => 
           </>
         )}
       </div>
+
+      {/* 이미지 확대 모달 */}
+      {selectedImage && (
+        <ImageModal
+          src={selectedImage}
+          alt="첨부 이미지 확대"
+          onClose={() => setSelectedImage(null)}
+        />
+      )}
 
       {/* 관리자 전용 원본 JSON 모달 (Portal로 body에 렌더링 + root에 inert 부여하여 Ctrl+F 배경 탐색 제외) */}
       {showJsonModal && createPortal(
