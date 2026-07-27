@@ -990,7 +990,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                           <span className="text-slate-300 text-[11px]">{new Date(userDetail.created_at).toLocaleString()}</span>
                         </div>
                         <div>
-                          <span className="text-slate-500 block text-[10px]">최종 업데이트</span>
+                          <span className="text-slate-500 block text-[10px]">최근 접속일</span>
                           <span className="text-slate-300 text-[11px]">{new Date(userDetail.updated_at).toLocaleString()}</span>
                         </div>
                       </div>
@@ -1041,6 +1041,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                             {isSavingSettings ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
                             저장
                           </button>
+
                         </div>
                       )}
                     </div>
