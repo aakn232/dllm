@@ -68,6 +68,10 @@ def save_chat_completion_result(
             approx_tokens = max(1, len(full_assistant_content) // 4)
             token_increment = actual_tokens if actual_tokens > 0 else approx_tokens
 
+            user_obj = db.query(User).filter(User.id == user_id).first()
+            if user_obj:
+                user_obj.last_active_at = datetime.utcnow()
+
             log_rec = db.query(UsageLog).filter(
                 UsageLog.user_id == user_id,
                 UsageLog.date == today

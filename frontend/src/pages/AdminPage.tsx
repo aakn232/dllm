@@ -18,6 +18,7 @@ interface UserAdminView {
   is_admin: boolean;
   is_active: boolean;
   created_at: string;
+  last_active_at?: string | null;
   today_token_count: number;
   today_request_count: number;
   limit_mode: string;
@@ -991,7 +992,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                         </div>
                         <div>
                           <span className="text-slate-500 block text-[10px]">최근 접속일</span>
-                          <span className="text-slate-300 text-[11px]">{new Date(userDetail.updated_at).toLocaleString()}</span>
+                          <span className="text-slate-300 text-[11px]">
+                            {userDetail.last_active_at ? new Date(userDetail.last_active_at).toLocaleString() : (userDetail.updated_at ? new Date(userDetail.updated_at).toLocaleString() : '기록 없음')}
+                          </span>
                         </div>
                       </div>
                       <div className="border-t pt-3 border-slate-800/40">

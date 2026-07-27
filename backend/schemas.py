@@ -75,6 +75,7 @@ class UserResponse(BaseModel):
     is_admin: bool
     is_active: bool
     created_at: datetime
+    last_active_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -126,6 +127,7 @@ class UserAdminView(BaseModel):
     is_admin: bool
     is_active: bool
     created_at: datetime
+    last_active_at: Optional[datetime] = None
     today_token_count: int
     today_request_count: int
     limit_mode: str
@@ -167,6 +169,7 @@ class UserAdminDetailView(BaseModel):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+    last_active_at: Optional[datetime] = None
     hashed_password: str
     settings: Optional[UserSettingsSchema] = None
     custom_instruction: Optional[CustomInstructionSchema] = None
