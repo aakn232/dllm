@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, ZoomIn } from 'lucide-react';
-import { useChatStore } from '../store/useChatStore';
+import { X } from 'lucide-react';
 
 interface ImageModalProps {
   src: string;
@@ -10,8 +9,6 @@ interface ImageModalProps {
 }
 
 export const ImageModal: React.FC<ImageModalProps> = ({ src, alt = '이미지', onClose }) => {
-  const darkMode = useChatStore(state => state.darkMode);
-
   useEffect(() => {
     const rootEl = document.getElementById('root');
     if (rootEl) rootEl.setAttribute('inert', '');
