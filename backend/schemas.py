@@ -167,6 +167,7 @@ class UserAdminDetailView(BaseModel):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+    last_login_at: Optional[datetime] = None
     hashed_password: str
     settings: Optional[UserSettingsSchema] = None
     custom_instruction: Optional[CustomInstructionSchema] = None
@@ -194,5 +195,3 @@ class AdminChatMessageView(BaseModel):
     raw_response: Optional[str] = None
     created_at: datetime
     attachments: List[AttachmentSchema] = []
-
-
