@@ -110,8 +110,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: () => {
     localStorage.removeItem('token');
     set({ token: null, user: null, isAuthenticated: false });
-    // useChatStore 홈으로 이동 및 세션 초기화
-    useChatStore.getState().goHome();
+    // 채팅 스토어 완전 초기화: 이전 계정의 sessions, messages, messageCache 모두 제거
+    useChatStore.setState({
+      sessions: [],
+      currentSessionId: null,
+      messages: [],
+      isLoadingSession: false,
+      isGenerating: false,
+      messageCache: {},
+      abortController: null,
+      tps: 0,
+    });
   },
 
   checkAuth: async () => {
@@ -232,7 +241,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // 로컬 스토리지 정리 및 상태 초기화
       localStorage.removeItem('token');
       set({ token: null, user: null, isAuthenticated: false });
-      useChatStore.getState().goHome();
+      // 채팅 스토어 완전 초기화
+      useChatStore.setState({
+        sessions: [],
+        currentSessionId: null,
+        messages: [],
+        isLoadingSession: false,
+        isGenerating: false,
+        messageCache: {},
+        abortController: null,
+        tps: 0,
+      });
     } catch (err) {
       handleFetchError(err);
     }
